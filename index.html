@@ -167,8 +167,9 @@ details[open] summary::after{content:"\2212"}
 }
 .prow label{font-size:13.5px; min-width:0; overflow-wrap:anywhere; line-height:1.3}
 .prow label em{display:block; font-style:normal; font-size:11.5px; color:var(--ink-faint)}
+/* 16px no minimo: com fonte menor o iPhone amplia a pagina ao tocar no campo */
 .prow input,.prow select{
-  font:inherit; font-size:14px; font-variant-numeric:tabular-nums;
+  font:inherit; font-size:16px; font-variant-numeric:tabular-nums;
   width:auto; min-width:130px; max-width:100%;
   padding:8px 6px; border:1px solid var(--rule); border-radius:4px;
   background:var(--panel-2); color:var(--ink); min-height:40px;
@@ -188,7 +189,7 @@ details[open] summary::after{content:"\2212"}
 .cmd{display:flex; gap:8px; margin-top:10px}
 .cmd input{
   flex:1; min-width:0;   /* mesma razao: item flex nao encolhe sozinho */
-  font:inherit; font-size:15px; padding:10px 12px; min-height:44px;
+  font:inherit; font-size:16px; padding:10px 12px; min-height:44px;
   border:1px solid var(--rule); border-radius:5px;
   background:var(--panel-2); color:var(--ink);
 }
@@ -219,6 +220,11 @@ input[type=range]{width:100%; height:42px; accent-color:var(--brass); margin:0}
 .note b{color:var(--ink)}
 .warnbox{border:1px solid var(--brass); border-left-width:4px; border-radius:5px;
   padding:11px 13px; font-size:13.5px; background:var(--panel); margin:10px 0 0}
+.conf{display:none}
+.conf.on{display:block}
+.conf .row{margin-top:8px}
+html{-webkit-text-size-adjust:100%}
+button{-webkit-tap-highlight-color:transparent; touch-action:manipulation}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -234,8 +240,9 @@ input[type=range]{width:100%; height:42px; accent-color:var(--brass); margin:0}
     <button class="key" id="link">Conectar</button>
   </div>
 
-  <p class="note" id="hint">Funciona no <b>Chrome do Android</b> ou no Chrome do computador.
-  Ligue a empilhadeira, toque em Conectar e escolha o módulo na lista.</p>
+  <p class="note" id="hint">Funciona no <b>Chrome do Android</b>, no <b>Bluefy do iPhone</b>
+  (gratuito na App Store) e no Chrome do computador. Ligue a empilhadeira, toque em
+  Conectar e escolha o módulo na lista.</p>
 
   <div id="faults"></div>
 
@@ -253,6 +260,8 @@ input[type=range]{width:100%; height:42px; accent-color:var(--brass); margin:0}
     <div class="tune">
       <span class="cons" id="tCons">Mansa</span>
       <span class="agr"  id="tAgr">Agressiva</span>
+      <span class="cons" id="tLim" style="display:none">Limitando</span>
+      <span class="agr"  id="tAuto" style="display:none">Auto-ajuste</span>
       <span class="liv" id="tLiv">Pedal livre</span>
       <span class="cut" id="tCt">Troca</span>
       <span class="cut"  id="tCut">Cortando</span>
@@ -297,7 +306,8 @@ input[type=range]{width:100%; height:42px; accent-color:var(--brass); margin:0}
     </div>
   </div>
 
-  <div class="panel">
+  <!-- Sintonia do programa ANTIGO (dois jogos de ganho: manso/agressivo) -->
+  <div class="panel" id="pidAntigo">
     <h2>Sintonia</h2>
     <p class="note" style="margin:0 0 12px">Três ajustes, aplicados na hora com a
     máquina andando. Os seis ganhos ficam no ajuste fino, se precisar.</p>
@@ -351,6 +361,49 @@ input[type=range]{width:100%; height:42px; accent-color:var(--brass); margin:0}
     </details>
   </div>
 
+  <!-- Sintonia do programa NOVO (PID unico + auto-ajuste). Aparece sozinha
+       quando o controlador responde com kp/ki/kd. -->
+  <div class="panel" id="pidNovo" style="display:none">
+    <h2>Sintonia</h2>
+    <p class="note" style="margin:0 0 12px">O auto-ajuste mede a máquina e calcula
+    o controle sozinho. Numa reta de <b>80 a 100 m</b>, com a carga de costume:
+    toque em <b>Auto-ajuste</b>, pise fundo e segure. Ele chega no limite, oscila
+    de leve em volta dele e termina sozinho em uns 20 a 40 segundos. Soltar o
+    pedal, frear ou trocar de marcha cancela sem mudar nada.</p>
+
+    <div class="reads" style="margin-top:0">
+      <div><b id="gKp">--</b><small>kP</small></div>
+      <div><b id="gKi">--</b><small>kI</small></div>
+      <div><b id="gKd">--</b><small>kD</small></div>
+      <div><b id="gBase">--</b><small>Base no limite</small></div>
+    </div>
+
+    <div class="bignum" style="margin:12px 0 0">
+      <b id="gEst" style="font-size:20px">parado</b><small>auto-ajuste</small>
+    </div>
+
+    <div class="row">
+      <button id="bAuto" class="key" disabled>Auto-ajuste</button>
+    </div>
+    <div class="row">
+      <button id="bPidSalvaN" disabled>Gravar na memória</button>
+      <button id="bPidVoltaN" disabled>Descartar</button>
+    </div>
+    <p class="note" style="margin:10px 0 0" id="pidNotaN">O resultado já vale na hora.
+    Ande para conferir e grave se gostar; desligar sem gravar volta ao anterior.</p>
+
+    <details style="margin:12px 0 0">
+      <summary>Ajuste manual</summary>
+      <div class="inner">
+        <p class="note" style="margin:8px 0 0">Só para correção. Aplica na hora,
+        grava com o botão acima.</p>
+        <div class="prow"><label>kP<em>força do corte</em></label><input id="fKp" type="text" inputmode="decimal" disabled></div>
+        <div class="prow"><label>kI<em>firmeza na trava</em></label><input id="fKi" type="text" inputmode="decimal" disabled></div>
+        <div class="prow"><label>kD<em>antecipação, normalmente 0</em></label><input id="fKd" type="text" inputmode="decimal" disabled></div>
+      </div>
+    </details>
+  </div>
+
   <details id="dParam">
     <summary>Parâmetros</summary>
     <div class="inner">
@@ -379,6 +432,13 @@ input[type=range]{width:100%; height:42px; accent-color:var(--brass); margin:0}
           <option value="2">2 · servo invertido</option>
           <option value="3">3 · eletrônico</option>
         </select>
+      </div>
+      <div class="warnbox conf" id="modoConf">Trocar o tipo de acelerador
+        <b>reinicia o controlador</b>. Confira os jumpers antes.
+        <div class="row">
+          <button id="modoSim" class="key">Trocar e reiniciar</button>
+          <button id="modoNao">Cancelar</button>
+        </div>
       </div>
       <div class="grp">Troca de marcha</div>
       <div class="prow">
@@ -481,7 +541,8 @@ input[type=range]{width:100%; height:42px; accent-color:var(--brass); margin:0}
       <div id="log"></div>
       <div class="cmd">
         <input id="cin" placeholder="monitor, calibrar, config…" autocomplete="off"
-               autocapitalize="off" spellcheck="false" disabled>
+               autocapitalize="off" autocorrect="off" spellcheck="false"
+               enterkeyhint="send" disabled>
         <button id="csend" disabled>Enviar</button>
       </div>
       <div class="row">
@@ -639,8 +700,25 @@ function liberar(on){
    'fVel','fAju','fMar','fMode','fCpc','fCms',
    'fCkp','fCki','fCkd','fAkp','fAki','fAkd',
    'sReac','sAnt','sFirm','pSuave','pNormal','pFirme','bPidSalva','bPidVolta',
+   'fKp','fKi','fKd','bAuto','bPidSalvaN','bPidVoltaN',
    'bCal0','bCal1','bZpul','bCmp']
    .forEach(i => $(i).disabled = !on);
+}
+
+/*  Escrita compativel com Chrome e Bluefy.
+ *  Prefere "sem resposta" (mais rapida) quando o modulo anuncia que aceita.
+ *  Se o navegador nao tiver a funcao, ou ela falhar uma vez, passa a usar a
+ *  escrita com resposta / writeValue para o resto da conexao.
+ */
+let escritaSimples = false;
+async function escreve(p){
+  const pr = chr.properties || {};
+  if(!escritaSimples && chr.writeValueWithoutResponse && pr.writeWithoutResponse !== false){
+    try{ await chr.writeValueWithoutResponse(p); return; }
+    catch(e){ escritaSimples = true; }
+  }
+  if(chr.writeValueWithResponse && pr.write) await chr.writeValueWithResponse(p);
+  else await chr.writeValue(p);
 }
 
 function enviar(linha){
@@ -648,9 +726,7 @@ function enviar(linha){
     if(!chr) return;
     const d = new TextEncoder().encode(linha + '\n');
     for(let i=0; i<d.length; i+=20){
-      const p = d.slice(i, i+20);
-      if(chr.writeValueWithoutResponse) await chr.writeValueWithoutResponse(p);
-      else await chr.writeValue(p);
+      await escreve(d.slice(i, i+20));
       await new Promise(r => setTimeout(r, 25));
     }
   }).catch(e => put('falha ao enviar: ' + e.message));
@@ -666,47 +742,115 @@ async function sequencia(lista, pausa){
   for(const c of lista){ await enviar(String(c)); await espera(pausa || 450); }
 }
 
+const ehIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+              (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+/* Tela acesa enquanto conectado: com a tela bloqueada o iPhone derruba o
+   Bluetooth. Nem todo navegador tem isto; onde nao tiver, nao faz nada. */
+let trava = null;
+async function telaAcesa(on){
+  try{
+    if(on && !trava && 'wakeLock' in navigator){
+      trava = await navigator.wakeLock.request('screen');
+      trava.addEventListener('release', ()=>{ trava = null; });
+    } else if(!on && trava){ await trava.release(); trava = null; }
+  }catch(e){ trava = null; }
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible' && chr) telaAcesa(true);
+});
+
+/* Lista de modulos. Primeiro pede "todos os dispositivos"; se o navegador
+   recusar essa forma, pede por filtro: servico FFE0 ou nomes comuns de
+   HM-10 e clones (HMSoft, BT05, MLT-BT05, JDY, DSD...). */
+async function pedeModulo(){
+  try{
+    return await navigator.bluetooth.requestDevice({
+      acceptAllDevices:true, optionalServices:[SVC]
+    });
+  }catch(e){
+    if(e.name !== 'TypeError' && e.name !== 'NotSupportedError') throw e;
+    return await navigator.bluetooth.requestDevice({
+      filters:[{services:[SVC]},{namePrefix:'HM'},{namePrefix:'BT'},
+               {namePrefix:'MLT'},{namePrefix:'JDY'},{namePrefix:'DSD'},
+               {namePrefix:'CC'},{namePrefix:'AT-'}],
+      optionalServices:[SVC]
+    });
+  }
+}
+
+/* Liga no modulo ja escolhido. Serve para a primeira conexao e para as
+   reconexoes automaticas. */
+async function ligaGatt(){
+  const gatt = await dev.gatt.connect();
+  const svc  = await gatt.getPrimaryService(SVC);
+  const c    = await svc.getCharacteristic(CHR);
+  /* ouvinte ANTES de ligar as notificacoes, senao a primeira linha se perde */
+  c.addEventListener('characteristicvaluechanged', chegou);
+  await c.startNotifications();
+  chr = c; buf = ''; escritaSimples = false;
+  estado((dev.name || 'Módulo') + ' conectado','on');
+  $('link').textContent = 'Desconectar';
+  $('hint').style.display = 'none';
+  liberar(true);
+  telaAcesa(true);
+  setTimeout(()=> enviar('ver'), 500);
+  setTimeout(()=>{ if(!teleOn) enviar('tele'); }, 2000);
+}
+
+let querConectado = false, reconectando = false;
+
 async function conectar(){
   if(!navigator.bluetooth){
-    estado('Sem Web Bluetooth neste navegador');
-    $('hint').innerHTML = 'Este navegador não tem Web Bluetooth. Use o <b>Chrome no Android</b> ou no computador. O Safari do iPhone não funciona. A página também precisa estar num endereço <b>https</b>: abrir o arquivo direto do celular não permite Bluetooth.';
+    estado('Sem Bluetooth neste navegador');
+    $('hint').style.display = '';
+    $('hint').innerHTML = ehIOS
+      ? 'No iPhone, abra esta página no app <b>Bluefy</b> (gratuito na App Store). O Safari e o Chrome do iPhone não têm Bluetooth para páginas.'
+      : 'Este navegador não tem Web Bluetooth. Use o <b>Chrome no Android</b> ou no computador. A página também precisa estar num endereço <b>https</b>: abrir o arquivo direto do celular não permite Bluetooth.';
     return;
   }
   try{
     estado('Escolha o módulo…','busy');
-    dev = await navigator.bluetooth.requestDevice({
-      acceptAllDevices:true, optionalServices:[SVC]
-    });
+    dev = await pedeModulo();
     dev.addEventListener('gattserverdisconnected', caiu);
+    querConectado = true;
     estado('Conectando…','busy');
-    const gatt = await dev.gatt.connect();
-    const svc = await gatt.getPrimaryService(SVC);
-    chr = await svc.getCharacteristic(CHR);
-    await chr.startNotifications();
-    chr.addEventListener('characteristicvaluechanged', chegou);
-    estado((dev.name || 'Módulo') + ' conectado','on');
-    $('link').textContent = 'Desconectar';
-    $('hint').style.display = 'none';
-    liberar(true);
-    setTimeout(()=> enviar('ver'), 500);
-    setTimeout(()=>{ if(!teleOn) enviar('tele'); }, 2000);
+    await ligaGatt();
   }catch(e){
     estado('Não conectou: ' + e.message);
     chr = null;
   }
 }
 
-function caiu(){
+function desligaTela(){
   chr = null; teleOn = false; liberar(false);
   clearInterval(tPoll);
   $('link').textContent = 'Conectar';
   $('bTele').className = '';
-  estado('Conexão perdida');
-  ['tCons','tAgr','tCut','tLiv','tCt'].forEach((id,i)=> $(id).className = ['cons','agr','cut','liv','cut'][i]);
+  ['tCons','tAgr','tLim','tAuto','tCut','tLiv','tCt'].forEach((id,i)=>
+    $(id).className = ['cons','agr','cons','agr','cut','liv','cut'][i]);
+  autoRodando(false);
+}
+
+/* Queda de conexao: tela bloqueada, troca de app, controlador reiniciando
+   (troca de modo) ou a maquina longe. Tenta voltar sozinho algumas vezes. */
+async function caiu(){
+  desligaTela();
+  if(!querConectado || reconectando || !dev){ estado('Desconectado'); return; }
+  reconectando = true;
+  for(let t = 1; t <= 6 && querConectado; t++){
+    estado('Conexão perdida, reconectando (' + t + ' de 6)…','busy');
+    await espera(1500 * t);
+    if(!querConectado) break;
+    try{ await ligaGatt(); reconectando = false; return; }catch(e){}
+  }
+  reconectando = false;
+  if(querConectado) estado('Conexão perdida. Toque em Conectar.');
 }
 
 function chegou(ev){
-  buf += new TextDecoder().decode(ev.target.value);
+  const v = ev.target.value;
+  buf += new TextDecoder().decode(new Uint8Array(v.buffer, v.byteOffset, v.byteLength));
   let n;
   while((n = buf.indexOf('\n')) >= 0){
     const l = buf.slice(0,n).replace(/\r/g,'');
@@ -724,9 +868,28 @@ function campos(l){
   return o;
 }
 
+/*  Qual programa esta no controlador. As maquinas nao sao todas atualizadas
+ *  juntas, entao o painel atende as duas versoes:
+ *    antigo: ganhos ckp/cki/ckd + akp/aki/akd, telemetria g = l, c ou a
+ *    novo:   ganhos kp/ki/kd + auto-ajuste,   telemetria g = l, p, b ou x
+ */
+let fw = 'antigo';
+function defineFw(f){
+  if(f === fw) return;
+  fw = f;
+  const novo = f === 'novo';
+  $('pidAntigo').style.display = novo ? 'none' : '';
+  $('pidNovo').style.display   = novo ? '' : 'none';
+  $('tCons').style.display = $('tAgr').style.display  = novo ? 'none' : '';
+  $('tLim').style.display  = $('tAuto').style.display = novo ? '' : 'none';
+}
+
 function processar(l){
   if(l.startsWith('$T ')){ amostra(campos(l)); return; }
   if(l.startsWith('$CFG')){ config(campos(l)); put(l); return; }
+  if(l.startsWith('$AT')){ defineFw('novo'); put(l); autoMsg(l); return; }
+  /* resposta dos comandos manuais da versao nova: "$kp=12.00" */
+  if(/^\$k[pid]=/.test(l)){ put(l); mostraGanhos(campos(l)); return; }
 
   put(l);
   if(/\$TELE ligada/i.test(l)){ teleOn = true;  $('bTele').className = 'live'; return; }
@@ -805,10 +968,17 @@ function amostra(o){
   $('rAlm').style.color   = d.al ? 'var(--signal)'
                           : d.ar ? 'var(--brass)' : '';
 
-  /* g = l (pedal livre, PID fora), c (sintonia mansa), a (agressiva) */
+  /* antigo: g = l (pedal livre), c (mansa), a (agressiva)
+     novo:   g = l (pedal livre), p (limitando), b/x (auto-ajuste) */
+  if(d.g === 'c' || d.g === 'a') defineFw('antigo');
+  else if(d.g === 'p' || d.g === 'b' || d.g === 'x') defineFw('novo');
   const cortando = d.g !== 'l' && d.te < d.p - 1;
+  const auto = d.g === 'b' || d.g === 'x';
   $('tCons').className = 'cons' + (d.g === 'c' ? ' hit' : '');
   $('tAgr').className  = 'agr'  + (d.g === 'a' ? ' hit' : '');
+  $('tLim').className  = 'cons' + (d.g === 'p' ? ' hit' : '');
+  $('tAuto').className = 'agr'  + (auto ? ' hit' : '');
+  if(auto && !atRodando) autoRodando(true);
   $('tCut').className  = 'cut'  + (cortando ? ' hit' : '');
   $('tLiv').className  = 'liv'  + (d.g === 'l' ? ' hit' : '');
   $('tCt').className   = 'cut'  + (d.ct ? ' hit' : '');
@@ -824,8 +994,11 @@ function config(o){
   const set = (id,val)=>{ const e=$(id); if(val!==undefined){ e.value=val; e.dataset.orig=val; e.classList.remove('dirty'); } };
   set('fVel', o.velmax);  set('fAju', o.ajuste);  set('fMar', o.marcha);
   set('fCpc', o.cpc);     set('fCms', o.cms);
+  if(o.kp !== undefined) defineFw('novo');
+  else if(o.ckp !== undefined) defineFw('antigo');
   set('fCkp', o.ckp); set('fCki', o.cki); set('fCkd', o.ckd);
   set('fAkp', o.akp); set('fAki', o.aki); set('fAkd', o.akd);
+  mostraGanhos(o);
   if(o.mode){ $('fMode').value = o.mode; $('fMode').dataset.orig = o.mode; }
   $('rPmin').textContent = o.pmin || '--';
   $('rPmax').textContent = o.pmax || '--';
@@ -835,14 +1008,15 @@ function config(o){
     (NOME_MODO[+o.mode]||'--') + '</b>, ' + (parseFloat(o.cmp)||0).toFixed(2).replace('.',',') +
     ' cm por pulso.';
   if(o.velmax) escala(parseFloat(o.velmax));
-  slidersDosGanhos();
+  if(fw === 'antigo') slidersDosGanhos();
 }
 
 function marcaSujo(id){
   const e = $(id);
   e.addEventListener('input', ()=> e.classList.toggle('dirty', e.value !== e.dataset.orig));
 }
-['fVel','fAju','fMar','fCpc','fCms','fCkp','fCki','fCkd','fAkp','fAki','fAkd'].forEach(marcaSujo);
+['fVel','fAju','fMar','fCpc','fCms','fCkp','fCki','fCkd','fAkp','fAki','fAkd',
+ 'fKp','fKi','fKd'].forEach(marcaSujo);
 
 /*  Os campos do limitador nao gravam sozinhos: ficam marcados e vao todos
  *  juntos no botao salvar. Cada comando grava direto na EEPROM do
@@ -875,16 +1049,22 @@ $('bSalvaPar').onclick = async ()=>{
   await espera(400); enviar('ver');
 };
 
+/* Confirmacao na propria pagina: a janela confirm() nao e confiavel em
+   todo navegador de celular (no Bluefy pode nem aparecer). */
 $('fMode').addEventListener('change', e=>{
-  const v = e.target.value;
-  if(v === e.target.dataset.orig) return;
-  if(!confirm('Trocar o tipo de acelerador reinicia o controlador. Continuar?')){
-    e.target.value = e.target.dataset.orig; return;
-  }
-  enviar('modo' + v);
-  e.target.dataset.orig = v;
-  aviso('AVISO','Controlador reiniciando. Reconecte em alguns segundos.');
+  $('modoConf').classList.toggle('on', e.target.value !== e.target.dataset.orig);
 });
+$('modoNao').onclick = ()=>{
+  $('fMode').value = $('fMode').dataset.orig || $('fMode').value;
+  $('modoConf').classList.remove('on');
+};
+$('modoSim').onclick = ()=>{
+  const v = $('fMode').value;
+  $('modoConf').classList.remove('on');
+  enviar('modo' + v);
+  $('fMode').dataset.orig = v;
+  aviso('AVISO','Controlador reiniciando. O painel reconecta sozinho.');
+};
 
 /* ====================== sintonia ====================== */
 /*  Tres controles no lugar de seis ganhos. Cada um multiplica um par de
@@ -993,6 +1173,93 @@ $('bPidVolta').onclick = async ()=>{
   e.addEventListener('keydown', ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); e.blur(); }});
 });
 
+/* ====================== sintonia da versao nova ====================== */
+/*  Um PID so, ajustado pelo auto-ajuste do controlador (comando "auto").
+ *  O controlador fala em linhas "$AT ...":
+ *    $AT armado ...           esperando chegar no limite com o pedal no fundo
+ *    $AT no limite ...        medindo a base
+ *    $AT base=62.6 oscilando  rele ligado
+ *    $AT ciclo 3/8
+ *    $AT corrigindo base=..   rele travado, ajustou sozinho
+ *    $AT ok kp= ki= kd= base= ku= tu= amp=
+ *    $AT abortado: motivo
+ */
+let atRodando = false;
+
+function autoRodando(on){
+  atRodando = on;
+  const b = $('bAuto');
+  b.textContent = on ? 'Cancelar auto-ajuste' : 'Auto-ajuste';
+  b.className   = on ? 'danger' : 'key';
+  if(!on && $('gEst').textContent !== 'concluído') $('gEst').textContent = 'parado';
+}
+
+function mostraGanhos(o){
+  const um = (id, campo, v)=>{
+    if(v === undefined) return;
+    const n = parseFloat(v); if(isNaN(n)) return;
+    $(id).textContent = br(n, 2);
+    $(campo).value = String(n); $(campo).dataset.orig = String(n);
+    $(campo).classList.remove('dirty');
+  };
+  um('gKp','fKp', o.kp); um('gKi','fKi', o.ki); um('gKd','fKd', o.kd);
+  if(o.base !== undefined){
+    const b = parseFloat(o.base);
+    $('gBase').textContent = (b > 0) ? Math.round(b*100) + '%' : 'não medida';
+  }
+}
+
+function autoMsg(l){
+  if(/^\$AT armado/.test(l)){
+    autoRodando(true); $('gEst').textContent = 'pise fundo até o limite';
+  } else if(/^\$AT no limite/.test(l)){
+    $('gEst').textContent = 'medindo a base';
+  } else if(/^\$AT base=/.test(l)){
+    $('gEst').textContent = 'oscilando';
+  } else if(/^\$AT corrigindo/.test(l)){
+    $('gEst').textContent = 'corrigindo a base';
+  } else if(/^\$AT ciclo/.test(l)){
+    const m = l.match(/ciclo (\d+)\/(\d+)/);
+    if(m) $('gEst').textContent = 'ciclo ' + m[1] + ' de ' + m[2];
+  } else if(/^\$AT ok/.test(l)){
+    mostraGanhos(campos(l));
+    $('gEst').textContent = 'concluído';
+    autoRodando(false);
+    $('pidNotaN').textContent = 'Auto-ajuste aplicado. Ande para conferir e grave se gostar.';
+    aviso('AVISO', 'Auto-ajuste concluído');
+  } else if(/^\$AT abortado/.test(l)){
+    autoRodando(false);
+    aviso('FALHA', 'Auto-ajuste cancelado: ' + l.replace(/^\$AT abortado:\s*/, ''));
+  }
+}
+
+$('bAuto').onclick = ()=>{
+  if(!atRodando) $('gEst').textContent = 'iniciando…';
+  enviar('auto');           /* o mesmo comando liga e cancela */
+};
+$('bPidSalvaN').onclick = async ()=>{
+  await enviar('pidsave');
+  $('pidNotaN').textContent = 'Gravado na memória.';
+  await espera(500); enviar('ver');
+};
+$('bPidVoltaN').onclick = async ()=>{
+  await enviar('pidload');
+  $('pidNotaN').textContent = 'Descartado, voltou ao que estava gravado.';
+  await espera(500); enviar('ver');
+};
+[['fKp','kp'],['fKi','ki'],['fKd','kd']].forEach(([id,cmd])=>{
+  const e = $(id);
+  const manda = async ()=>{
+    const x = parseFloat(String(e.value).replace(',','.'));
+    if(isNaN(x) || e.value === e.dataset.orig) return;
+    await enviar(cmd + x);
+    e.dataset.orig = String(x); e.classList.remove('dirty');
+    $('pidNotaN').textContent = 'Ajuste manual aplicado. Ainda não gravado.';
+  };
+  e.addEventListener('blur', manda);
+  e.addEventListener('keydown', ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); e.blur(); }});
+});
+
 /* ====================== calibracao do pedal ====================== */
 $('bCal0').onclick = ()=> enviar('cal0');
 $('bCal1').onclick = ()=> enviar('cal1');
@@ -1056,8 +1323,14 @@ $('bCmp').onclick  = async ()=>{
 
 /* ====================== eventos ====================== */
 $('link').onclick = ()=>{
-  if(chr && dev && dev.gatt.connected){ dev.gatt.disconnect(); caiu(); }
-  else conectar();
+  if(chr && dev && dev.gatt.connected){
+    querConectado = false;            /* saida pedida: nao reconecta */
+    telaAcesa(false);
+    dev.gatt.disconnect();
+    desligaTela(); estado('Desconectado');
+  } else if(reconectando){
+    querConectado = false;            /* desiste da reconexao em andamento */
+  } else conectar();
 };
 
 $('bTele').onclick  = ()=> enviar('tele');
