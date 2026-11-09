@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Painel do limitador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ground:#EEF1F3; --panel:#FFFFFF; --panel-2:#F6F8F9;
+  --ink:#16202A; --ink-soft:#5A6873; --ink-faint:#8B98A3;
+  --rule:#C9D2D8; --rule-soft:#E1E7EB;
+  --brass:#A8781F; --brass-lit:#C8922E;
+  --signal:#B3261E; --ok:#2E6B4F; --cool:#3D6E8F;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#131A21; --panel:#1A232C; --panel-2:#212C36;
+    --ink:#E4EAEF; --ink-soft:#8C9AA6; --ink-faint:#697884;
+    --rule:#2C3944; --rule-soft:#232E38;
+    --brass:#D9A441; --brass-lit:#EFBF63;
+    --signal:#E5675C; --ok:#4FA57C; --cool:#6FA3C4;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#131A21; --panel:#1A232C; --panel-2:#212C36;
+  --ink:#E4EAEF; --ink-soft:#8C9AA6; --ink-faint:#697884;
+  --rule:#2C3944; --rule-soft:#232E38;
+  --brass:#D9A441; --brass-lit:#EFBF63;
+  --signal:#E5675C; --ok:#4FA57C; --cool:#6FA3C4;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%; scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  margin:0; min-height:100%; background:var(--ground); color:var(--ink);
+  font-family:Archivo,"Helvetica Neue",Arial,sans-serif;
+  font-size:16px; line-height:1.45; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:560px; margin:0 auto; padding:0 14px 48px}
+h1{font-size:19px; font-weight:600; margin:0; letter-spacing:-.01em}
+h2{font-size:15px; font-weight:600; margin:0 0 10px; color:var(--ink-soft)}
+
+.bar{
+  position:sticky; top:env(safe-area-inset-top,0px); z-index:20;
+  background:var(--panel); border-bottom:1px solid var(--rule);
+  margin:0 -14px 16px; padding:12px 14px;
+  display:flex; align-items:center; gap:12px;
+}
+.bar .who{flex:1; min-width:0}
+.bar .sub{font-size:12.5px; color:var(--ink-faint); margin-top:1px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ink-faint);flex:none}
+.dot.on{background:var(--ok)}
+.dot.busy{background:var(--brass)}
+
+button{
+  font:inherit; font-weight:500; color:var(--ink);
+  background:var(--panel); border:1px solid var(--rule); border-radius:5px;
+  padding:11px 14px; cursor:pointer; min-height:44px;
+}
+button:hover{border-color:var(--ink-faint)}
+button:focus-visible{outline:2px solid var(--brass); outline-offset:2px}
+button:disabled{opacity:.42; cursor:default}
+button.key{background:var(--brass); border-color:var(--brass); color:#fff}
+button.key:hover{background:var(--brass-lit); border-color:var(--brass-lit)}
+button.danger{color:var(--signal); border-color:var(--signal)}
+button.danger.hit{background:var(--signal); border-color:var(--signal); color:#fff}
+button.warn{color:var(--brass); border-color:var(--brass)}
+button.warn.hit{background:var(--brass); border-color:var(--brass); color:#fff}
+button.live{border-color:var(--ok); color:var(--ok)}
+button.hit{border-color:var(--ok); color:var(--ok)}
+
+.panel{
+  background:var(--panel); border:1px solid var(--rule); border-radius:6px;
+  padding:16px; margin-bottom:14px;
+}
+
+.dial{display:block; width:100%; max-width:330px; margin:0 auto}
+.dial .grad{stroke:var(--rule); stroke-width:1.5}
+.dial .grad.major{stroke:var(--ink-faint); stroke-width:2}
+.dial .track{fill:none; stroke:var(--rule-soft); stroke-width:13; stroke-linecap:round}
+.dial .fill{fill:none; stroke:var(--brass); stroke-width:13; stroke-linecap:round;
+  transition:stroke-dasharray .25s linear}
+.dial .fill.over{stroke:var(--signal)}
+.dial .want{fill:none; stroke:var(--cool); stroke-width:3; stroke-linecap:round;
+  transition:stroke-dasharray .25s linear}
+.dial .num{fill:var(--ink-faint); font-size:11px; font-weight:500}
+.dial .big{fill:var(--ink); font-size:58px; font-weight:700;
+  font-variant-numeric:tabular-nums; letter-spacing:-.02em}
+.dial .unit{fill:var(--ink-soft); font-size:15px; font-weight:500}
+.dial .cap{fill:var(--ink-faint); font-size:12.5px; font-weight:500}
+
+.tune{display:flex; justify-content:center; gap:6px; margin:6px 0 2px}
+.tune span{
+  font-size:12.5px; font-weight:600; padding:5px 12px; border-radius:4px;
+  border:1px solid var(--rule-soft); color:var(--ink-faint);
+}
+.tune span.hit{border-color:currentColor}
+.tune .cons.hit{color:var(--ok)}
+.tune .agr.hit{color:var(--brass)}
+.tune .cut.hit{color:var(--signal)}
+.tune .liv.hit{color:var(--ink-soft)}
+
+.bars{margin-top:16px}
+.bline{margin-bottom:11px}
+.bline .lab{display:flex; justify-content:space-between; align-items:baseline;
+  font-size:12.5px; color:var(--ink-faint); font-weight:500; margin-bottom:4px}
+.bline .lab b{font-size:14px; color:var(--ink); font-variant-numeric:tabular-nums}
+.meter{height:9px; background:var(--rule-soft); border-radius:5px; overflow:hidden}
+.meter i{display:block; height:100%; border-radius:5px; width:0;
+  transition:width .2s linear}
+.meter i.ped{background:var(--ok)}
+.meter i.tet{background:var(--cool)}
+.meter i.sai{background:var(--brass)}
+
+.reads{display:grid; grid-template-columns:repeat(2,1fr); gap:1px;
+  background:var(--rule-soft); border:1px solid var(--rule-soft); border-radius:5px;
+  overflow:hidden; margin-top:14px}
+.reads div{background:var(--panel-2); padding:10px 12px}
+.reads b{display:block; font-size:22px; font-weight:600;
+  font-variant-numeric:tabular-nums; line-height:1.15}
+.reads small{font-size:12px; color:var(--ink-faint); font-weight:500}
+
+#plot{width:100%; height:190px; display:block}
+.legend{display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px;
+  color:var(--ink-faint); margin-top:8px}
+.legend i{display:inline-block; width:15px; height:2.5px; vertical-align:middle;
+  margin-right:6px; border-radius:2px}
+
+.row{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
+.row button{flex:1 1 auto; min-width:96px}
+
+#faults:empty{display:none}
+#faults{margin-bottom:14px}
+.fault{
+  border:1px solid var(--signal); border-left-width:4px; border-radius:5px;
+  padding:11px 13px; margin-bottom:8px; font-size:14.5px; background:var(--panel);
+}
+.fault b{display:block; color:var(--signal)}
+.fault.warn{border-color:var(--brass)}
+.fault.warn b{color:var(--brass)}
+
+details{background:var(--panel); border:1px solid var(--rule); border-radius:6px;
+  margin-bottom:14px; overflow:hidden}
+summary{padding:15px 16px; cursor:pointer; font-weight:600; list-style:none}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+"; float:right; color:var(--ink-faint); font-weight:400}
+details[open] summary::after{content:"\2212"}
+.inner{padding:0 16px 16px}
+.grp{font-size:12.5px; font-weight:600; color:var(--ink-faint);
+  padding:14px 0 6px; border-bottom:1px solid var(--rule-soft)}
+/* === DISPOSICAO DAS LINHAS DE PARAMETRO (previne corte) ===
+   A coluna do campo e "auto": dimensiona pelo conteudo, nao por um valor
+   fixo que o input estoura. Quem encolhe e o rotulo, via minmax(0,1fr). */
+.prow{
+  display:grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap:8px;
+  align-items:center;
+  padding:8px 0;
+  border-bottom:1px solid var(--rule-soft);
+}
+.prow label{font-size:13.5px; min-width:0; overflow-wrap:anywhere; line-height:1.3}
+.prow label em{display:block; font-style:normal; font-size:11.5px; color:var(--ink-faint)}
+.prow input,.prow select{
+  font:inherit; font-size:14px; font-variant-numeric:tabular-nums;
+  width:auto; min-width:130px; max-width:100%;
+  padding:8px 6px; border:1px solid var(--rule); border-radius:4px;
+  background:var(--panel-2); color:var(--ink); min-height:40px;
+  box-sizing:border-box;
+}
+.prow input{text-align:right}
+.prow input:focus,.prow select:focus{outline:2px solid var(--brass); outline-offset:-1px}
+.prow input.dirty{border-color:var(--brass)}
+
+#log{
+  font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:12.5px;
+  line-height:1.5; background:var(--panel-2); border:1px solid var(--rule-soft);
+  border-radius:5px; padding:11px; height:240px; overflow:auto;
+  white-space:pre-wrap; overflow-wrap:anywhere; color:var(--ink-soft);
+}
+#log .me{color:var(--brass); font-weight:600}
+.cmd{display:flex; gap:8px; margin-top:10px}
+.cmd input{
+  flex:1; min-width:0;   /* mesma razao: item flex nao encolhe sozinho */
+  font:inherit; font-size:15px; padding:10px 12px; min-height:44px;
+  border:1px solid var(--rule); border-radius:5px;
+  background:var(--panel-2); color:var(--ink);
+}
+.cmd input:focus{outline:2px solid var(--brass); outline-offset:-1px}
+
+.sld{margin-bottom:18px}
+.sld .slab{display:flex; justify-content:space-between; align-items:baseline}
+.sld .slab span{font-size:14px; font-weight:600}
+.sld .slab b{font-size:20px; font-weight:600; font-variant-numeric:tabular-nums;
+  color:var(--brass)}
+.sld em{display:block; font-style:normal; font-size:12.5px; color:var(--ink-faint);
+  line-height:1.35; margin-top:2px}
+input[type=range]{width:100%; height:42px; accent-color:var(--brass); margin:0}
+
+.bignum{background:var(--panel-2); border:1px solid var(--rule-soft);
+  border-radius:5px; padding:12px 14px; margin-bottom:12px}
+.bignum b{display:block; font-size:30px; font-weight:600;
+  font-variant-numeric:tabular-nums; line-height:1.1}
+.bignum small{font-size:12px; color:var(--ink-faint); font-weight:500}
+
+.resbox{margin-top:14px; padding:12px 14px; border-radius:5px;
+  border:1px solid var(--rule-soft); background:var(--panel-2);
+  font-size:13.5px; color:var(--ink-soft)}
+.resbox b{color:var(--ink); font-size:17px; font-variant-numeric:tabular-nums}
+.resbox.bad{border-color:var(--signal); color:var(--signal)}
+
+.note{font-size:13.5px; color:var(--ink-soft); margin:0 0 14px}
+.note b{color:var(--ink)}
+.warnbox{border:1px solid var(--brass); border-left-width:4px; border-radius:5px;
+  padding:11px 13px; font-size:13.5px; background:var(--panel); margin:10px 0 0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="bar">
+    <span class="dot" id="dot"></span>
+    <div class="who">
+      <h1>Limitador</h1>
+      <div class="sub" id="status">Desconectado</div>
+    </div>
+    <button class="key" id="link">Conectar</button>
+  </div>
+
+  <p class="note" id="hint">Funciona no <b>Chrome do Android</b> ou no Chrome do computador.
+  Ligue a empilhadeira, toque em Conectar e escolha o módulo na lista.</p>
+
+  <div id="faults"></div>
+
+  <div class="panel">
+    <svg class="dial" viewBox="0 0 300 232" role="img" aria-label="Velocidade">
+      <g id="grads"></g>
+      <path class="track" id="track"></path>
+      <path class="fill"  id="fill" stroke-dasharray="0 999"></path>
+      <path class="want"  id="want" stroke-dasharray="0 999"></path>
+      <text class="big"  id="dVel" x="150" y="158" text-anchor="middle">--</text>
+      <text class="unit" x="150" y="180" text-anchor="middle">km/h</text>
+      <text class="cap"  id="dLim" x="150" y="205" text-anchor="middle">limite --</text>
+    </svg>
+
+    <div class="tune">
+      <span class="liv"  id="tLiv">Pedal livre</span>
+      <span class="cons" id="tLim">Limitando</span>
+      <span class="agr"  id="tAuto">Auto-ajuste</span>
+      <span class="cut" id="tCt">Troca</span>
+      <span class="cut"  id="tCut">Cortando</span>
+    </div>
+
+    <div class="bars">
+      <div class="bline">
+        <div class="lab"><span>Pedal</span><b id="nPed">--</b></div>
+        <div class="meter"><i class="ped" id="mPed"></i></div>
+      </div>
+      <div class="bline">
+        <div class="lab"><span>Teto do limitador</span><b id="nTet">--</b></div>
+        <div class="meter"><i class="tet" id="mTet"></i></div>
+      </div>
+      <div class="bline">
+        <div class="lab"><span>Saída para o acelerador</span><b id="nSai">--</b></div>
+        <div class="meter"><i class="sai" id="mSai"></i></div>
+      </div>
+    </div>
+
+    <div class="reads">
+      <div><b id="rModo">--</b><small>Acelerador</small></div>
+      <div><b id="rCurso">--</b><small>Curso máximo</small></div>
+      <div><b id="rPul">--</b><small>Pulsos do sensor</small></div>
+      <div><b id="rCt">--</b><small>Corte da troca</small></div>
+      <div><b id="rAlm">--</b><small>Entrada de alarme</small></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Últimos 60 segundos</h2>
+    <canvas id="plot"></canvas>
+    <div class="legend">
+      <span><i style="background:var(--brass)"></i>Velocidade</span>
+      <span><i style="background:var(--cool)"></i>Limite</span>
+      <span><i style="background:var(--ok)"></i>Pedal</span>
+      <span><i style="background:var(--ink-faint)"></i>Teto</span>
+    </div>
+    <div class="row">
+      <button id="bTele" disabled>Telemetria</button>
+      <button id="bZoom" disabled>Limpar gráfico</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Sintonia</h2>
+    <p class="note" style="margin:0 0 12px">O auto-ajuste mede a máquina e calcula
+    o controle sozinho. Numa reta de <b>80 a 100 m</b>, com a carga de costume:
+    toque em <b>Auto-ajuste</b>, pise fundo e segure. Ele chega no limite, oscila
+    de leve em volta dele e termina sozinho em uns 20 a 40 segundos. Soltar o
+    pedal, frear ou trocar de marcha cancela sem mudar nada.</p>
+
+    <div class="reads" style="margin-top:0">
+      <div><b id="gKp">--</b><small>kP</small></div>
+      <div><b id="gKi">--</b><small>kI</small></div>
+      <div><b id="gKd">--</b><small>kD</small></div>
+      <div><b id="gBase">--</b><small>Base no limite</small></div>
+    </div>
+
+    <div class="bignum" style="margin:12px 0 0">
+      <b id="gEst" style="font-size:20px">parado</b><small>auto-ajuste</small>
+    </div>
+
+    <div class="row">
+      <button id="bAuto" class="key" disabled>Auto-ajuste</button>
+    </div>
+    <div class="row">
+      <button id="bPidSalva" disabled>Gravar na memória</button>
+      <button id="bPidVolta" disabled>Descartar</button>
+    </div>
+    <p class="note" style="margin:10px 0 0" id="pidNota">O resultado já vale na hora.
+    Ande para conferir e grave se gostar; desligar sem gravar volta ao anterior.</p>
+
+    <details style="margin:12px 0 0">
+      <summary>Ajuste manual</summary>
+      <div class="inner">
+        <p class="note" style="margin:8px 0 0">Só para correção. Aplica na hora,
+        grava com o botão acima.</p>
+        <div class="prow"><label>kP<em>força do corte</em></label><input id="fKp" type="text" inputmode="decimal" disabled></div>
+        <div class="prow"><label>kI<em>firmeza na trava</em></label><input id="fKi" type="text" inputmode="decimal" disabled></div>
+        <div class="prow"><label>kD<em>antecipação, normalmente 0</em></label><input id="fKd" type="text" inputmode="decimal" disabled></div>
+      </div>
+    </details>
+  </div>
+
+  <details id="dParam">
+    <summary>Parâmetros</summary>
+    <div class="inner">
+      <div class="row" style="margin:0 0 6px">
+        <button id="bLer" disabled>Recarregar</button>
+      </div>
+      <p class="note" style="margin:8px 0 0" id="pNote">Carregue para ver os valores atuais.</p>
+
+      <div class="grp">Limitador</div>
+      <div class="prow">
+        <label>velocidade máxima<em>km/h</em></label>
+        <input id="fVel" type="text" inputmode="decimal" disabled>
+      </div>
+      <div class="prow">
+        <label>ajuste do acelerador<em id="uAju">curso máximo</em></label>
+        <input id="fAju" type="text" inputmode="decimal" disabled>
+      </div>
+      <div class="prow">
+        <label>troca de marcha<em>km/h</em></label>
+        <input id="fMar" type="text" inputmode="decimal" disabled>
+      </div>
+      <div class="prow">
+        <label>tipo de acelerador<em>reinicia ao gravar</em></label>
+        <select id="fMode" disabled>
+          <option value="1">1 · servo normal</option>
+          <option value="2">2 · servo invertido</option>
+          <option value="3">3 · eletrônico</option>
+        </select>
+      </div>
+      <div class="grp">Troca de marcha</div>
+      <div class="prow">
+        <label>acelerador no engate<em>% que SOBRA &middot; 40 corta muito,
+        55 padrão, 100 não corta</em></label>
+        <input id="fCpc" type="text" inputmode="decimal" disabled>
+      </div>
+      <div class="prow">
+        <label>duração do corte<em>ms até voltar ao normal &middot; máx. 2500</em></label>
+        <input id="fCms" type="text" inputmode="decimal" disabled>
+      </div>
+
+      <div class="row">
+        <button id="bSalvaPar" class="key" disabled>Salvar parâmetros</button>
+      </div>
+      <p class="note" style="margin:10px 0 0" id="parNota">Altere o que precisar e
+      toque em salvar. Os campos alterados ficam destacados.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Calibrar pedal</summary>
+    <div class="inner">
+      <p class="note" style="margin:0 0 12px">Com a máquina ligada e parada. A leitura
+      abaixo é o valor cru do pedal, ao vivo.</p>
+      <div class="bignum"><b id="pedCru">--</b><small>leitura do pedal agora</small></div>
+      <div class="row">
+        <button id="bCal0" disabled>Gravar repouso</button>
+        <button id="bCal1" class="key" disabled>Gravar fundo</button>
+      </div>
+      <div class="reads" style="margin-top:14px">
+        <div><b id="rPmin">--</b><small>Repouso gravado</small></div>
+        <div><b id="rPmax">--</b><small>Fundo gravado</small></div>
+      </div>
+      <p class="note" style="margin:12px 0 0">Solte o pedal e toque em repouso; pise a
+      fundo e toque em fundo. O controlador recusa se o curso for curto demais.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Calibrar velocímetro</summary>
+    <div class="inner">
+      <p class="note" style="margin:0 0 12px">Mede direto quantos centímetros a máquina
+      anda por pulso. Dispensa dentes da coroa e diâmetro do pneu, e por isso não erra
+      com pneu gasto ou redução no meio.</p>
+
+      <div class="prow">
+        <label>método</label>
+        <select id="cMet">
+          <option value="roda">Roda levantada</option>
+          <option value="dist">Distância percorrida</option>
+        </select>
+      </div>
+
+      <div id="gRoda">
+        <div class="prow">
+          <label>circunferência do pneu<em>cm, trena em volta do pneu</em></label>
+          <input id="cCirc" type="text" inputmode="decimal" value="250">
+        </div>
+        <div class="prow">
+          <label>voltas dadas na roda</label>
+          <input id="cVolt" type="text" inputmode="decimal" value="20">
+        </div>
+        <div class="prow">
+          <label>sensor e rodas<em>define o fator da conta</em></label>
+          <select id="cFator">
+            <option value="1">sensor na roda, ou as duas no ar</option>
+            <option value="2">sensor no diferencial, uma roda no ar</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="gDist" style="display:none">
+        <div class="prow">
+          <label>distância total<em>metros, somando as passadas</em></label>
+          <input id="cDist" type="text" inputmode="decimal" value="10">
+        </div>
+      </div>
+
+      <div class="bignum" style="margin-top:14px">
+        <b id="cPul">--</b><small>pulsos contados desde o zero</small>
+      </div>
+      <div class="row">
+        <button id="bZpul" disabled>Zerar contador</button>
+      </div>
+
+      <div class="resbox" id="cRes">Zere o contador, faça o percurso e o resultado
+      aparece aqui.</div>
+      <div class="row">
+        <button id="bCmp" class="key" disabled>Gravar no controlador</button>
+      </div>
+      <p class="note" style="margin:12px 0 0">Mire em pelo menos 150 pulsos. Se faltar
+      espaço, repita o percurso várias vezes sem zerar e some a distância.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Terminal</summary>
+    <div class="inner">
+      <div id="log"></div>
+      <div class="cmd">
+        <input id="cin" placeholder="monitor, calibrar, config…" autocomplete="off"
+               autocapitalize="off" spellcheck="false" disabled>
+        <button id="csend" disabled>Enviar</button>
+      </div>
+      <div class="row">
+        <button id="bCad" disabled>Cadastrar crachá</button>
+        <button id="bOk" disabled>Terminar cadastro</button>
+      </div>
+    </div>
+  </details>
+
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const br = (n,d=1) => Number(n).toFixed(d).replace('.',',');
+
+/* ====================== mostrador ====================== */
+let FS = 16;                       /* fundo de escala, ajusta ao limite */
+const A0 = 150, A1 = 390, CX = 150, CY = 132, R = 104;
+const LEN = 2*Math.PI*R*(A1-A0)/360;
+const ang = v => A0 + (Math.min(Math.max(v,0),FS)/FS) * (A1-A0);
+const pol = (a,r) => [CX + r*Math.cos(a*Math.PI/180), CY + r*Math.sin(a*Math.PI/180)];
+function arc(from,to,r){
+  const [x1,y1]=pol(from,r), [x2,y2]=pol(to,r);
+  return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${(to-from)>180?1:0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
+}
+const SVGNS = "http://www.w3.org/2000/svg";
+
+function graduar(){
+  const g = $('grads');
+  while(g.firstChild) g.removeChild(g.firstChild);
+  const passo = FS > 24 ? 2 : 1, rot = FS > 24 ? 10 : 5;
+  for(let v=0; v<=FS+1e-6; v+=passo){
+    const major = Math.abs(v/rot - Math.round(v/rot)) < .01, a = ang(v);
+    const [xa,ya]=pol(a,R+10), [xb,yb]=pol(a,R+(major?19:15));
+    const l=document.createElementNS(SVGNS,"line");
+    l.setAttribute('x1',xa.toFixed(2)); l.setAttribute('y1',ya.toFixed(2));
+    l.setAttribute('x2',xb.toFixed(2)); l.setAttribute('y2',yb.toFixed(2));
+    l.setAttribute('class','grad'+(major?' major':''));
+    g.appendChild(l);
+    if(major){
+      const [tx,ty]=pol(a,R+30);
+      const t=document.createElementNS(SVGNS,"text");
+      t.setAttribute('x',tx.toFixed(2)); t.setAttribute('y',(ty+4).toFixed(2));
+      t.setAttribute('text-anchor','middle'); t.setAttribute('class','num');
+      t.textContent = Math.round(v); g.appendChild(t);
+    }
+  }
+}
+$('track').setAttribute('d', arc(A0,A1,R));
+$('fill').setAttribute('d',  arc(A0,A1,R));
+$('want').setAttribute('d',  arc(A0,A1,R));
+graduar();
+
+function escala(lim){
+  const novo = Math.max(10, Math.ceil(lim*1.6/5)*5);
+  if(novo !== FS){ FS = novo; graduar(); draw(); }
+}
+
+function paintDial(vel, lim){
+  $('fill').setAttribute('stroke-dasharray',
+    `${(LEN*Math.min(Math.max(vel,0),FS)/FS).toFixed(1)} 999`);
+  $('want').setAttribute('stroke-dasharray',
+    `${(LEN*Math.min(Math.max(lim,0),FS)/FS).toFixed(1)} 999`);
+  $('fill').setAttribute('class','fill' + (vel > lim + 1 ? ' over' : ''));
+  $('dVel').textContent = br(vel);
+  $('dLim').textContent = 'limite ' + lim + ' km/h';
+}
+
+/* ====================== grafico ====================== */
+const cv = $('plot'), ctx = cv.getContext('2d');
+const JAN = 60000;
+let hist = [];
+
+function css(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function size(){
+  const r = window.devicePixelRatio || 1;
+  cv.width = cv.clientWidth*r; cv.height = cv.clientHeight*r;
+  ctx.setTransform(r,0,0,r,0,0); draw();
+}
+addEventListener('resize', size);
+
+function draw(){
+  const w = cv.clientWidth, h = cv.clientHeight, PB = 20, PL = 26;
+  ctx.clearRect(0,0,w,h);
+  const t0 = Date.now() - JAN;
+  const topo = Math.max(10, Math.ceil(FS));
+  const gx = t => PL + (t - t0)/JAN * (w - PL - 4);
+  const gy = v => (h - PB) - (Math.min(Math.max(v,0),topo)/topo) * (h - PB - 6);
+
+  ctx.strokeStyle = css('--rule-soft'); ctx.lineWidth = 1;
+  ctx.fillStyle = css('--ink-faint');
+  ctx.font = '10px Archivo, sans-serif'; ctx.textAlign = 'right';
+  const passo = topo > 24 ? 10 : 5;
+  for(let v=0; v<=topo; v+=passo){
+    const y = Math.round(gy(v)) + .5;
+    ctx.beginPath(); ctx.moveTo(PL,y); ctx.lineTo(w-4,y); ctx.stroke();
+    ctx.fillText(v, PL-5, y+3);
+  }
+
+  const pts = hist.filter(p => p.t >= t0);
+  if(pts.length < 2) return;
+
+  /* pedal e teto vem em unidades de acelerador: normaliza pelo curso */
+  const curso = Math.max(1, pts[pts.length-1].c || 140);
+  const area = (k,color)=>{
+    ctx.beginPath();
+    ctx.moveTo(gx(pts[0].t), h-PB);
+    pts.forEach(p => ctx.lineTo(gx(p.t), (h-PB) - (Math.min(p[k],curso)/curso)*(h-PB-6)));
+    ctx.lineTo(gx(pts[pts.length-1].t), h-PB);
+    ctx.closePath(); ctx.fillStyle = color + '22'; ctx.fill();
+  };
+  area('p', css('--ok'));
+
+  const linhaNorm = (k,color,wid,dash)=>{
+    ctx.beginPath(); ctx.setLineDash(dash||[]);
+    pts.forEach((p,i)=>{
+      const y = (h-PB) - (Math.min(p[k],curso)/curso)*(h-PB-6);
+      i ? ctx.lineTo(gx(p.t), y) : ctx.moveTo(gx(p.t), y);
+    });
+    ctx.strokeStyle=color; ctx.lineWidth=wid; ctx.lineJoin='round';
+    ctx.stroke(); ctx.setLineDash([]);
+  };
+  linhaNorm('te', css('--ink-faint'), 1.25, [3,3]);
+
+  const linha = (k,color,wid,dash)=>{
+    ctx.beginPath(); ctx.setLineDash(dash||[]);
+    pts.forEach((p,i)=> i ? ctx.lineTo(gx(p.t), gy(p[k])) : ctx.moveTo(gx(p.t), gy(p[k])));
+    ctx.strokeStyle=color; ctx.lineWidth=wid; ctx.lineJoin='round';
+    ctx.stroke(); ctx.setLineDash([]);
+  };
+  linha('a', css('--cool'), 1.75, [5,4]);
+  linha('v', css('--brass'), 2.25);
+}
+
+/* ====================== bluetooth ====================== */
+const SVC = 0xFFE0, CHR = 0xFFE1;
+let chr = null, dev = null, fila = Promise.resolve(), buf = '';
+let teleOn = false, tPoll = null;
+
+function put(txt, mine){
+  const L = $('log'); const s = document.createElement('span');
+  if(mine) s.className = 'me';
+  s.textContent = txt + '\n'; L.appendChild(s);
+  while(L.childNodes.length > 400) L.removeChild(L.firstChild);
+  L.scrollTop = L.scrollHeight;
+}
+function estado(txt, cls){
+  $('status').textContent = txt;
+  $('dot').className = 'dot' + (cls ? ' ' + cls : '');
+}
+function liberar(on){
+  ['bTele','bZoom','bLer','bSalvaPar',
+   'cin','csend','bCad','bOk',
+   'fVel','fAju','fMar','fMode','fCpc','fCms',
+   'fKp','fKi','fKd','bAuto','bPidSalva','bPidVolta',
+   'bCal0','bCal1','bZpul','bCmp']
+   .forEach(i => $(i).disabled = !on);
+}
+
+function enviar(linha){
+  fila = fila.then(async () => {
+    if(!chr) return;
+    const d = new TextEncoder().encode(linha + '\n');
+    for(let i=0; i<d.length; i+=20){
+      const p = d.slice(i, i+20);
+      if(chr.writeValueWithoutResponse) await chr.writeValueWithoutResponse(p);
+      else await chr.writeValue(p);
+      await new Promise(r => setTimeout(r, 25));
+    }
+  }).catch(e => put('falha ao enviar: ' + e.message));
+  put('> ' + linha, true);
+  return fila;
+}
+
+const espera = ms => new Promise(r => setTimeout(r, ms));
+
+/* Sequencia de comandos com pausa. Os menus do controlador sao de etapas:
+   "velocidade" abre, o numero preenche, "ok" grava. */
+async function sequencia(lista, pausa){
+  for(const c of lista){ await enviar(String(c)); await espera(pausa || 450); }
+}
+
+async function conectar(){
+  if(!navigator.bluetooth){
+    estado('Sem Web Bluetooth neste navegador');
+    $('hint').innerHTML = 'Este navegador não tem Web Bluetooth. Use o <b>Chrome no Android</b> ou no computador. O Safari do iPhone não funciona. A página também precisa estar num endereço <b>https</b>: abrir o arquivo direto do celular não permite Bluetooth.';
+    return;
+  }
+  try{
+    estado('Escolha o módulo…','busy');
+    dev = await navigator.bluetooth.requestDevice({
+      acceptAllDevices:true, optionalServices:[SVC]
+    });
+    dev.addEventListener('gattserverdisconnected', caiu);
+    estado('Conectando…','busy');
+    const gatt = await dev.gatt.connect();
+    const svc = await gatt.getPrimaryService(SVC);
+    chr = await svc.getCharacteristic(CHR);
+    await chr.startNotifications();
+    chr.addEventListener('characteristicvaluechanged', chegou);
+    estado((dev.name || 'Módulo') + ' conectado','on');
+    $('link').textContent = 'Desconectar';
+    $('hint').style.display = 'none';
+    liberar(true);
+    setTimeout(()=> enviar('ver'), 500);
+    setTimeout(()=>{ if(!teleOn) enviar('tele'); }, 2000);
+  }catch(e){
+    estado('Não conectou: ' + e.message);
+    chr = null;
+  }
+}
+
+function caiu(){
+  chr = null; teleOn = false; liberar(false);
+  clearInterval(tPoll);
+  $('link').textContent = 'Conectar';
+  $('bTele').className = '';
+  estado('Conexão perdida');
+  ['tLim','tAuto','tCut','tLiv','tCt'].forEach((id,i)=> $(id).className = ['cons','agr','cut','liv','cut'][i]);
+  autoRodando(false);
+}
+
+function chegou(ev){
+  buf += new TextDecoder().decode(ev.target.value);
+  let n;
+  while((n = buf.indexOf('\n')) >= 0){
+    const l = buf.slice(0,n).replace(/\r/g,'');
+    buf = buf.slice(n+1);
+    if(l.length) processar(l);
+  }
+  if(buf.length > 2000) buf = '';
+}
+
+/* ====================== interpretar o texto ====================== */
+/* telemetria:  $T v=9.8 a=10 p=140 t=52 s=52 c=140 m=1 al=0 g=c pul=1234 */
+function campos(l){
+  const o = {};
+  l.replace(/([a-z]+)=([^\s]+)/gi, (_,k,v)=>{ o[k]=v; return ''; });
+  return o;
+}
+
+function processar(l){
+  if(l.startsWith('$T ')){ amostra(campos(l)); return; }
+  if(l.startsWith('$CFG')){ config(campos(l)); put(l); return; }
+
+  if(l.startsWith('$AT')){ put(l); autoMsg(l); return; }
+  /* resposta dos comandos manuais kp/ki/kd: "$kp=12.00" */
+  if(/^\$k[pid]=/.test(l)){ put(l); mostraGanhos(campos(l)); return; }
+
+  put(l);
+  if(/\$TELE ligada/i.test(l)){ teleOn = true;  $('bTele').className = 'live'; return; }
+  if(/\$TELE desligada/i.test(l)){ teleOn = false; $('bTele').className = ''; return; }
+  if(/ACESSO\s+LIBERADO/i.test(l)) aviso('AVISO','Crachá liberado');
+  if(/ACESSO\s+NEGADO/i.test(l))   aviso('FALHA','Crachá negado');
+  if(/CURSO MUITO CURTO/i.test(l)) aviso('FALHA','Calibração do pedal inválida, padrão restaurado');
+
+  /* O controlador confirma a calibracao na propria resposta; ler daqui evita
+     ter de pedir um "ver" so para atualizar os dois numeros na tela. */
+  if(l.startsWith('$OK pedal')){
+    const o = campos(l);
+    if(o.min !== undefined) $('rPmin').textContent = o.min;
+    if(o.max !== undefined) $('rPmax').textContent = o.max;
+    aviso('AVISO','Pedal gravado: ' + o.min + ' a ' + o.max);
+    return;
+  }
+  /* Qualquer recusa do controlador vira aviso na tela, em vez de ficar so
+     no terminal onde ninguem olha. */
+  if(l.startsWith('$ERR')){ aviso('FALHA', l.replace('$ERR','').trim()); return; }
+}
+
+let ultAviso = 0;
+function aviso(nivel, texto){
+  const box = $('faults');
+  if(Date.now() - ultAviso > 4000) box.innerHTML = '';
+  ultAviso = Date.now();
+  const d = document.createElement('div');
+  d.className = 'fault' + (nivel === 'FALHA' ? '' : ' warn');
+  d.innerHTML = '<b></b><span></span>';
+  d.firstChild.textContent = nivel === 'FALHA' ? 'Atenção' : 'Aviso';
+  d.lastChild.textContent = texto;
+  box.appendChild(d);
+  setTimeout(()=>{ if(d.parentNode) d.parentNode.removeChild(d); }, 8000);
+}
+
+const NOME_MODO = {1:'servo', 2:'invertido', 3:'eletrônico'};
+
+function amostra(o){
+  const v = parseFloat(o.v), a = parseFloat(o.a);
+  if(isNaN(v) || isNaN(a)) return;
+  const d = {
+    t:Date.now(), v:v, a:a,
+    p:+o.p||0, te:+o.t||0, s:+o.s||0, c:+o.c||140,
+    m:+o.m||1, g:o.g||'c', pul:+o.pul||0, r:+o.r||0, ct:+o.ct||0,
+    al:+o.al||0, ar:+o.ar||0
+  };
+  $('pedCru').textContent = d.r;
+  $('cPul').textContent   = d.pul;
+  calcCmp();
+  /* no historico: t = instante, te = teto. Nomes distintos de proposito,
+     o campo "t" da telemetria e o teto e colidiria com o tempo. */
+  hist.push({t:d.t, v:d.v, a:d.a, p:d.p, te:d.te, c:d.c});
+  const corte = Date.now() - JAN - 2000;
+  while(hist.length && hist[0].t < corte) hist.shift();
+
+  escala(d.a);
+  paintDial(d.v, d.a);
+
+  const curso = Math.max(1, d.c);
+  const pct = x => Math.min(100, Math.max(0, x/curso*100)).toFixed(1) + '%';
+  $('mPed').style.width = pct(d.p);
+  $('mTet').style.width = pct(d.te);
+  $('mSai').style.width = pct(d.m === 2 ? (180 - d.s) : d.s);
+  $('nPed').textContent = d.p;
+  $('nTet').textContent = d.te;
+  $('nSai').textContent = d.s + (d.m === 2 ? ' (inv)' : '');
+
+  $('rModo').textContent  = NOME_MODO[d.m] || d.m;
+  $('rCurso').textContent = d.c;
+  $('rPul').textContent   = d.pul;
+  $('rCt').textContent    = d.ct ? 'ativo' : '--';
+  /* al = depois do filtro (o que o controle usa), ar = leitura crua do pino.
+     Cru piscando com o filtro em repouso = ruido, e o pulldown resolve. */
+  $('rAlm').textContent   = d.al ? 'FREANDO' : (d.ar ? 'ruído' : 'livre');
+  $('rAlm').style.color   = d.al ? 'var(--signal)'
+                          : d.ar ? 'var(--brass)' : '';
+
+  /* g = l (pedal livre), p (PID limitando), b/x (auto-ajuste: base/oscilando) */
+  const cortando = d.g !== 'l' && d.te < d.p - 1;
+  const auto = d.g === 'b' || d.g === 'x';
+  $('tLim').className  = 'cons' + (d.g === 'p' ? ' hit' : '');
+  $('tAuto').className = 'agr'  + (auto ? ' hit' : '');
+  if(auto && !atRodando) autoRodando(true);
+  $('tCut').className  = 'cut'  + (cortando ? ' hit' : '');
+  $('tLiv').className  = 'liv'  + (d.g === 'l' ? ' hit' : '');
+  $('tCt').className   = 'cut'  + (d.ct ? ' hit' : '');
+
+  if(!teleOn){ teleOn = true; $('bTele').className = 'live'; }
+  draw();
+}
+
+/* ====================== configuracao ====================== */
+let cfg = {};
+function config(o){
+  cfg = o;
+  const set = (id,val)=>{ const e=$(id); if(val!==undefined){ e.value=val; e.dataset.orig=val; e.classList.remove('dirty'); } };
+  set('fVel', o.velmax);  set('fAju', o.ajuste);  set('fMar', o.marcha);
+  set('fCpc', o.cpc);     set('fCms', o.cms);
+  mostraGanhos(o);
+  if(o.mode){ $('fMode').value = o.mode; $('fMode').dataset.orig = o.mode; }
+  $('rPmin').textContent = o.pmin || '--';
+  $('rPmax').textContent = o.pmax || '--';
+  $('uAju').textContent = o.mode === '3' ? 'PWM, 204 = 4 V'
+                        : o.mode === '2' ? 'grau de fundo' : 'graus';
+  $('pNote').innerHTML = 'Limite <b>' + (o.velmax||'--') + ' km/h</b>, acelerador <b>' +
+    (NOME_MODO[+o.mode]||'--') + '</b>, ' + (parseFloat(o.cmp)||0).toFixed(2).replace('.',',') +
+    ' cm por pulso.';
+  if(o.velmax) escala(parseFloat(o.velmax));
+}
+
+function marcaSujo(id){
+  const e = $(id);
+  e.addEventListener('input', ()=> e.classList.toggle('dirty', e.value !== e.dataset.orig));
+}
+['fVel','fAju','fMar','fCpc','fCms','fKp','fKi','fKd'].forEach(marcaSujo);
+
+/*  Os campos do limitador nao gravam sozinhos: ficam marcados e vao todos
+ *  juntos no botao salvar. Cada comando grava direto na EEPROM do
+ *  controlador, sem abrir menu e sem travar o loop.
+ */
+const CAMPOS = [['fVel','vmax'],['fAju','aju'],['fMar','mar'],
+                ['fCpc','cpc'],['fCms','cms']];
+
+CAMPOS.forEach(([id])=>{
+  $(id).addEventListener('keydown', ev=>{
+    if(ev.key==='Enter'){ ev.preventDefault(); $('bSalvaPar').click(); }
+  });
+});
+
+$('bSalvaPar').onclick = async ()=>{
+  const fila2 = [];
+  for(const [id,pre] of CAMPOS){
+    const e = $(id);
+    const x = parseFloat(String(e.value).replace(',','.'));
+    if(isNaN(x) || e.value === e.dataset.orig) continue;
+    fila2.push(pre + Math.round(x));
+    e.dataset.orig = String(Math.round(x));
+    e.value = e.dataset.orig;
+    e.classList.remove('dirty');
+  }
+  if(!fila2.length){ $('parNota').textContent = 'Nada mudou para salvar.'; return; }
+  $('parNota').textContent = 'Salvando…';
+  await sequencia(fila2, 250);
+  $('parNota').textContent = fila2.length + ' parâmetro(s) gravado(s).';
+  await espera(400); enviar('ver');
+};
+
+$('fMode').addEventListener('change', e=>{
+  const v = e.target.value;
+  if(v === e.target.dataset.orig) return;
+  if(!confirm('Trocar o tipo de acelerador reinicia o controlador. Continuar?')){
+    e.target.value = e.target.dataset.orig; return;
+  }
+  enviar('modo' + v);
+  e.target.dataset.orig = v;
+  aviso('AVISO','Controlador reiniciando. Reconecte em alguns segundos.');
+});
+
+/* ====================== sintonia ====================== */
+/*  Um PID so, ajustado pelo auto-ajuste do controlador (comando "auto").
+ *  O controlador fala em linhas "$AT ...":
+ *    $AT armado ...           esperando chegar no limite com o pedal no fundo
+ *    $AT no limite ...        medindo a base
+ *    $AT base=62.6 oscilando  rele ligado
+ *    $AT ciclo 3/8
+ *    $AT corrigindo base=..   rele travado, ajustou sozinho
+ *    $AT ok kp= ki= kd= base= ku= tu= amp=
+ *    $AT abortado: motivo
+ */
+let atRodando = false;
+
+function autoRodando(on){
+  atRodando = on;
+  const b = $('bAuto');
+  b.textContent = on ? 'Cancelar auto-ajuste' : 'Auto-ajuste';
+  b.className   = on ? 'danger' : 'key';
+  if(!on && $('gEst').textContent !== 'concluído') $('gEst').textContent = 'parado';
+}
+
+function mostraGanhos(o){
+  const um = (id, campo, v)=>{
+    if(v === undefined) return;
+    const n = parseFloat(v); if(isNaN(n)) return;
+    $(id).textContent = br(n, 2);
+    $(campo).value = String(n); $(campo).dataset.orig = String(n);
+    $(campo).classList.remove('dirty');
+  };
+  um('gKp','fKp', o.kp); um('gKi','fKi', o.ki); um('gKd','fKd', o.kd);
+  if(o.base !== undefined){
+    const b = parseFloat(o.base);
+    $('gBase').textContent = (b > 0) ? Math.round(b*100) + '%' : 'não medida';
+  }
+}
+
+function autoMsg(l){
+  if(/^\$AT armado/.test(l)){
+    autoRodando(true); $('gEst').textContent = 'pise fundo até o limite';
+  } else if(/^\$AT no limite/.test(l)){
+    $('gEst').textContent = 'medindo a base';
+  } else if(/^\$AT base=/.test(l)){
+    $('gEst').textContent = 'oscilando';
+  } else if(/^\$AT corrigindo/.test(l)){
+    $('gEst').textContent = 'corrigindo a base';
+  } else if(/^\$AT ciclo/.test(l)){
+    const m = l.match(/ciclo (\d+)\/(\d+)/);
+    if(m) $('gEst').textContent = 'ciclo ' + m[1] + ' de ' + m[2];
+  } else if(/^\$AT ok/.test(l)){
+    mostraGanhos(campos(l));
+    $('gEst').textContent = 'concluído';
+    autoRodando(false);
+    $('pidNota').textContent = 'Auto-ajuste aplicado. Ande para conferir e grave se gostar.';
+    aviso('AVISO', 'Auto-ajuste concluído');
+  } else if(/^\$AT abortado/.test(l)){
+    autoRodando(false);
+    aviso('FALHA', 'Auto-ajuste cancelado: ' + l.replace(/^\$AT abortado:\s*/, ''));
+  }
+}
+
+$('bAuto').onclick = ()=>{
+  if(!atRodando) $('gEst').textContent = 'iniciando…';
+  enviar('auto');           /* o mesmo comando liga e cancela */
+};
+
+$('bPidSalva').onclick = async ()=>{
+  await enviar('pidsave');
+  $('pidNota').textContent = 'Gravado na memória.';
+  await espera(500); enviar('ver');
+};
+$('bPidVolta').onclick = async ()=>{
+  await enviar('pidload');
+  $('pidNota').textContent = 'Descartado, voltou ao que estava gravado.';
+  await espera(500); enviar('ver');
+};
+
+/* ajuste manual: aplica direto */
+[['fKp','kp'],['fKi','ki'],['fKd','kd']].forEach(([id,cmd])=>{
+  const e = $(id);
+  const manda = async ()=>{
+    const x = parseFloat(String(e.value).replace(',','.'));
+    if(isNaN(x) || e.value === e.dataset.orig) return;
+    await enviar(cmd + x);
+    e.dataset.orig = String(x); e.classList.remove('dirty');
+    $('pidNota').textContent = 'Ajuste manual aplicado. Ainda não gravado.';
+  };
+  e.addEventListener('blur', manda);
+  e.addEventListener('keydown', ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); e.blur(); }});
+});
+
+/* ====================== calibracao do pedal ====================== */
+$('bCal0').onclick = ()=> enviar('cal0');
+$('bCal1').onclick = ()=> enviar('cal1');
+
+
+/* ====================== calibracao do velocimetro ====================== */
+$('cMet').addEventListener('change', ()=>{
+  const roda = $('cMet').value === 'roda';
+  $('gRoda').style.display = roda ? '' : 'none';
+  $('gDist').style.display = roda ? 'none' : '';
+  calcCmp();
+});
+['cCirc','cVolt','cDist','cFator'].forEach(id=>
+  $(id).addEventListener('input', calcCmp));
+
+let cmpCalc = 0;
+function calcCmp(){
+  const pulsos = parseFloat($('cPul').textContent) || 0;
+  let cm = 0, aviso1 = '';
+
+  if($('cMet').value === 'roda'){
+    const circ = parseFloat(String($('cCirc').value).replace(',','.')) || 0;
+    const volt = parseFloat(String($('cVolt').value).replace(',','.')) || 0;
+    const fat  = parseFloat($('cFator').value) || 1;
+    /* Uma roda no ar com diferencial aberto: a coroa gira metade, entao o
+       sensor conta metade dos pulsos que a mesma distancia daria no chao. */
+    if(circ > 0 && volt > 0 && pulsos > 0) cm = (circ * volt) / (pulsos * fat);
+  } else {
+    const dist = parseFloat(String($('cDist').value).replace(',','.')) || 0;
+    if(dist > 0 && pulsos > 0) cm = (dist * 100) / pulsos;
+  }
+
+  const box = $('cRes');
+  if(!(cm > 0)){
+    cmpCalc = 0;
+    box.className = 'resbox';
+    box.textContent = 'Zere o contador, faça o percurso e o resultado aparece aqui.';
+    return;
+  }
+  cmpCalc = Math.round(cm * 1000) / 1000;
+
+  if(pulsos < 150) aviso1 = ' Poucos pulsos: repita o percurso para melhorar a precisão.';
+  if(cmpCalc < 0.1 || cmpCalc > 100){
+    box.className = 'resbox bad';
+    box.textContent = 'Resultado fora do razoável (' + cmpCalc +
+      ' cm por pulso). Confira os números digitados.';
+    cmpCalc = 0;
+    return;
+  }
+  box.className = 'resbox' + (pulsos < 150 ? ' bad' : '');
+  box.innerHTML = '<b>' + String(cmpCalc).replace('.',',') + ' cm por pulso</b>' +
+    ' &middot; ' + pulsos + ' pulsos' + aviso1;
+}
+
+$('bZpul').onclick = ()=> enviar('zpul');
+$('bCmp').onclick  = async ()=>{
+  if(!(cmpCalc > 0)){ aviso('FALHA','Não há resultado válido para gravar.'); return; }
+  await enviar('cmp' + cmpCalc);
+  await espera(500); enviar('ver');
+};
+
+/* ====================== eventos ====================== */
+$('link').onclick = ()=>{
+  if(chr && dev && dev.gatt.connected){ dev.gatt.disconnect(); caiu(); }
+  else conectar();
+};
+
+$('bTele').onclick  = ()=> enviar('tele');
+$('bZoom').onclick  = ()=>{ hist = []; draw(); };
+$('bLer').onclick   = async ()=>{
+  $('pNote').textContent = 'Lendo…';
+  if(teleOn){ await enviar('tele'); await espera(400); }
+  await enviar('ver');
+  await espera(600);
+  if(!teleOn) enviar('tele');
+};
+$('bCad').onclick = ()=> enviar('cadastro');
+$('bOk').onclick  = ()=> enviar('ok');
+
+$('csend').onclick = ()=>{
+  const v = $('cin').value.trim();
+  if(v){ enviar(v); $('cin').value=''; }
+};
+$('cin').addEventListener('keydown', e=>{ if(e.key==='Enter') $('csend').click(); });
+
+size();
+paintDial(0,0);
+setInterval(()=>{ if(hist.length) draw(); }, 700);
+</script>
+</body>
+</html>
