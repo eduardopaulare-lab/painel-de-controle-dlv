@@ -242,6 +242,25 @@ body.trancado .wrap{display:none}
 #gerador code{display:block; font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   font-size:12px; overflow-wrap:anywhere; background:var(--panel-2); padding:10px;
   border-radius:5px; margin-top:8px; user-select:all; -webkit-user-select:all}
+/* ---- PIN e crachas ---- */
+#pinBox{border-color:var(--brass)}
+#pinBox input{font:inherit; font-size:22px; letter-spacing:.3em; text-align:center;
+  width:100%; padding:10px; min-height:50px; border:1px solid var(--rule); border-radius:5px;
+  background:var(--panel-2); color:var(--ink); margin:6px 0 10px}
+#pinBox input:focus{outline:2px solid var(--brass); outline-offset:-1px}
+#pinErro{color:var(--signal); font-size:14px; min-height:20px; margin:8px 0 0}
+.lem2{display:flex; align-items:center; gap:8px; font-size:14px; color:var(--ink-soft); margin:0 0 10px}
+.lem2 input{width:20px; height:20px; margin:0; accent-color:var(--brass)}
+.crow{display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:8px; align-items:center;
+  padding:8px 0; border-bottom:1px solid var(--rule-soft)}
+.crow code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:13px;
+  color:var(--ink-soft)}
+.crow input{font:inherit; font-size:16px; min-width:0; width:100%; padding:7px 8px;
+  border:1px solid var(--rule); border-radius:4px; background:var(--panel-2); color:var(--ink);
+  min-height:40px}
+.crow button{min-height:40px; padding:8px 10px}
+.crow.novo{background:var(--panel-2)}
+#craVazio{font-size:13.5px; color:var(--ink-faint); padding:10px 0}
 .conf{display:none}
 .conf.on{display:block}
 .conf .row{margin-top:8px}
@@ -292,6 +311,21 @@ button{-webkit-tap-highlight-color:transparent; touch-action:manipulation}
   Conectar e escolha o módulo na lista.</p>
 
   <div id="faults"></div>
+
+  <!-- PIN da maquina (so no programa novo). Quem confere e o Arduino. -->
+  <div class="panel" id="pinBox" style="display:none">
+    <h2>PIN da máquina</h2>
+    <p class="note" style="margin:0" id="pinTxt">Para mudar qualquer ajuste desta máquina,
+    digite o PIN de 6 dígitos. Ver velocidade e telemetria não precisa.</p>
+    <input id="pinIn" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6"
+           autocomplete="off" enterkeyhint="go" placeholder="••••••">
+    <label class="lem2"><input type="checkbox" id="pinLembra" checked> lembrar o PIN desta máquina neste aparelho</label>
+    <div class="row" style="margin-top:0">
+      <button class="key" id="pinOk">Destravar</button>
+      <button id="pinDepois">Agora não</button>
+    </div>
+    <p id="pinErro"></p>
+  </div>
 
   <div class="panel">
     <svg class="dial" viewBox="0 0 300 232" role="img" aria-label="Velocidade">
@@ -584,19 +618,75 @@ button{-webkit-tap-highlight-color:transparent; touch-action:manipulation}
     </div>
   </details>
 
+  <details id="dCra">
+    <summary>Crachás</summary>
+    <div class="inner">
+      <div class="prow" style="border-top:1px solid var(--rule-soft)">
+        <label>exigir crachá para ligar<em id="craExigeTxt">--</em></label>
+        <button id="bCraExige" disabled>--</button>
+      </div>
+      <div class="warnbox conf" id="craExigeConf"><span id="craExigeMsg"></span>
+        <div class="row">
+          <button id="craExigeSim" class="key">Confirmar e reiniciar</button>
+          <button id="craExigeNao">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- programa novo: lista completa -->
+      <div id="craNovo" style="display:none">
+        <div class="grp" id="craTit">Cadastrados</div>
+        <div id="craLista"><div id="craVazio">Toque em Atualizar para ver a lista.</div></div>
+        <div class="row">
+          <button id="bCraAdd" class="key" disabled>Cadastrar crachás</button>
+          <button id="bCraLer" disabled>Atualizar</button>
+        </div>
+        <p class="note" style="margin:10px 0 0" id="craNota">Toque em Cadastrar e passe os
+        cartões na leitora, um de cada vez. O nome do operador fica salvo só neste
+        aparelho; a máquina guarda o número do cartão.</p>
+        <p class="note" style="margin:6px 0 0" id="craUlt"></p>
+      </div>
+
+      <!-- programa antigo: so o modo de cadastro da tela de cracha -->
+      <div id="craAntigo">
+        <p class="note" style="margin:12px 0 0">Nesta máquina (programa antigo) o cadastro
+        só funciona na tela de crachá, logo depois de ligar. Toque em Cadastrar e passe o
+        cartão: um cartão novo é incluído, um já cadastrado é <b>removido</b>.</p>
+        <div class="row">
+          <button id="bCad" disabled>Cadastrar crachá</button>
+          <button id="bOk" disabled>Terminar cadastro</button>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <details id="dSeg" style="display:none">
+    <summary>Segurança</summary>
+    <div class="inner">
+      <p class="note" style="margin:0 0 4px" id="segTxt">Troque o PIN desta máquina. Ele fica
+      gravado no controlador; anote em lugar seguro, porque sem ele só regravando o programa.</p>
+      <div class="prow"><label>PIN novo<em>6 dígitos</em></label>
+        <input id="segP1" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" disabled></div>
+      <div class="prow"><label>repita o PIN novo</label>
+        <input id="segP2" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off" disabled></div>
+      <div class="row">
+        <button id="bSegPin" class="key" disabled>Trocar PIN</button>
+        <button id="bSegBloq" disabled>Travar agora</button>
+      </div>
+      <div class="row">
+        <button id="bSegEsq" disabled>Esquecer PIN neste aparelho</button>
+      </div>
+    </div>
+  </details>
+
   <details>
     <summary>Terminal</summary>
     <div class="inner">
       <div id="log"></div>
       <div class="cmd">
-        <input id="cin" placeholder="monitor, calibrar, config…" autocomplete="off"
+        <input id="cin" placeholder="ver, tele, vmax10…" autocomplete="off"
                autocapitalize="off" autocorrect="off" spellcheck="false"
                enterkeyhint="send" disabled>
         <button id="csend" disabled>Enviar</button>
-      </div>
-      <div class="row">
-        <button id="bCad" disabled>Cadastrar crachá</button>
-        <button id="bOk" disabled>Terminar cadastro</button>
       </div>
     </div>
   </details>
@@ -839,6 +929,7 @@ function liberar(on){
    'fCkp','fCki','fCkd','fAkp','fAki','fAkd',
    'sReac','sAnt','sFirm','pSuave','pNormal','pFirme','bPidSalva','bPidVolta',
    'fKp','fKi','fKd','bAuto','bPidSalvaN','bPidVoltaN',
+   'bCraExige','bCraAdd','bCraLer','segP1','segP2','bSegPin','bSegBloq','bSegEsq',
    'bCal0','bCal1','bZpul','bCmp']
    .forEach(i => $(i).disabled = !on);
 }
@@ -868,7 +959,7 @@ function enviar(linha){
       await new Promise(r => setTimeout(r, 25));
     }
   }).catch(e => put('falha ao enviar: ' + e.message));
-  put('> ' + linha, true);
+  put('> ' + (/^n?pin\d/.test(linha) ? linha.replace(/\d/g,'•') : linha), true);
   return fila;
 }
 
@@ -961,6 +1052,9 @@ async function conectar(){
 }
 
 function desligaTela(){
+  temPin = false; destravado = false;
+  $('pinBox').style.display = 'none';
+  craFimModo();
   chr = null; teleOn = false; liberar(false);
   clearInterval(tPoll);
   $('link').textContent = 'Conectar';
@@ -1026,6 +1120,10 @@ function processar(l){
   if(l.startsWith('$T ')){ amostra(campos(l)); return; }
   if(l.startsWith('$CFG')){ config(campos(l)); put(l); return; }
   if(l.startsWith('$AT')){ defineFw('novo'); put(l); autoMsg(l); return; }
+  if(l.startsWith('$PIN')){ put(l); pinMsg(l); return; }
+  if(l.startsWith('$CRA')){ craMsg(l); return; }
+  if(l.startsWith('$OK pin')){ put(l); pinTrocado(); return; }
+  if(/^\$OK cracha/.test(l)){ put(l); aviso('AVISO', l.replace('$OK ','')); return; }
   /* resposta dos comandos manuais da versao nova: "$kp=12.00" */
   if(/^\$k[pid]=/.test(l)){ put(l); mostraGanhos(campos(l)); return; }
 
@@ -1134,6 +1232,8 @@ function config(o){
   set('fCpc', o.cpc);     set('fCms', o.cms);
   if(o.kp !== undefined) defineFw('novo');
   else if(o.ckp !== undefined) defineFw('antigo');
+  configPin(o);
+  configCra(o);
   set('fCkp', o.ckp); set('fCki', o.cki); set('fCkd', o.ckd);
   set('fAkp', o.akp); set('fAki', o.aki); set('fAkd', o.akd);
   mostraGanhos(o);
@@ -1476,11 +1576,224 @@ $('bCmp').onclick  = async ()=>{
   await espera(500); enviar('ver');
 };
 
+/* ====================== PIN da maquina ====================== */
+/*  So no programa novo (o $CFG traz pin=0/1). Quem confere o PIN e o
+ *  Arduino: aqui ele so e digitado, mandado e, se pedido, lembrado neste
+ *  aparelho pelo nome do modulo. Nunca vai para o codigo da pagina.
+ */
+let temPin = false, destravado = false, pinMandado = '', pinPadrao = false;
+const chavePin = ()=> 'limitador-pin:' + ((dev && dev.name) || 'modulo');
+function pinGuardado(){ try{ return localStorage.getItem(chavePin()); }catch(e){ return null; } }
+function guardaPin(p){ try{ p ? localStorage.setItem(chavePin(), p) : localStorage.removeItem(chavePin()); }catch(e){} }
+
+function mostraPin(msg){
+  $('pinBox').style.display = '';
+  $('pinErro').textContent = msg || '';
+  $('pinIn').value = '';
+}
+function mandaPin(p){ pinMandado = p; enviar('pin' + p); }
+
+function configPin(o){
+  temPin = o.pin !== undefined;
+  $('dSeg').style.display = temPin ? '' : 'none';
+  if(!temPin){ $('pinBox').style.display = 'none'; return; }
+  pinPadrao = o.pinpad === '1';
+  destravado = o.pin === '1';
+  if(destravado){ $('pinBox').style.display = 'none'; return; }
+  const g = pinGuardado();
+  if(g && g !== pinMandado) mandaPin(g);          /* lembrado: destrava sozinho */
+  else if(!g) mostraPin('');
+}
+
+function pinMsg(l){
+  if(/\$PIN ok/.test(l)){
+    destravado = true;
+    $('pinBox').style.display = 'none';
+    if($('pinLembra').checked && pinMandado) guardaPin(pinMandado);
+    estado(((dev && dev.name) || 'Módulo') + ' conectado · destravado', 'on');
+    if(pinPadrao) aviso('FALHA','Esta máquina ainda usa o PIN de fábrica. Troque em Segurança.');
+  } else if(/\$PIN errado/.test(l)){
+    destravado = false;
+    if(pinGuardado() === pinMandado) guardaPin(null);   /* lembrado e errado: esquece */
+    pinMandado = '';
+    mostraPin('PIN errado.');
+  } else if(/\$PIN aguarde/.test(l)){
+    pinMandado = '';
+    mostraPin('Muitas tentativas erradas. Aguarde 1 minuto.');
+  } else if(/\$PIN necessario/.test(l)){
+    destravado = false;
+    const g = pinGuardado();
+    if(g){ mandaPin(g); aviso('AVISO','Máquina travada, destravando. Repita o comando.'); }
+    else { mostraPin('Este ajuste precisa do PIN.'); aviso('FALHA','Precisa do PIN da máquina.'); }
+  } else if(/\$PIN bloqueado/.test(l)){
+    destravado = false; pinMandado = '';
+    if(chr && querConectado) estado(((dev && dev.name) || 'Módulo') + ' conectado · travado', 'on');
+  }
+}
+
+$('pinOk').onclick = ()=>{
+  const p = $('pinIn').value.trim();
+  if(!/^\d{6}$/.test(p)){ $('pinErro').textContent = 'O PIN tem 6 dígitos.'; return; }
+  $('pinErro').textContent = 'Conferindo…';
+  mandaPin(p);
+};
+$('pinIn').addEventListener('keydown', e=>{ if(e.key === 'Enter') $('pinOk').click(); });
+$('pinDepois').onclick = ()=>{ $('pinBox').style.display = 'none'; };
+
+function pinTrocado(){
+  const novo = $('segP1').dataset.enviado || '';
+  if(novo){
+    pinMandado = novo;
+    if(pinGuardado()) guardaPin(novo);       /* se lembrava o antigo, lembra o novo */
+  }
+  $('segP1').value = $('segP2').value = ''; $('segP1').dataset.enviado = '';
+  pinPadrao = false;
+  aviso('AVISO','PIN trocado nesta máquina.');
+}
+$('bSegPin').onclick = ()=>{
+  const a = $('segP1').value.trim(), b = $('segP2').value.trim();
+  if(!/^\d{6}$/.test(a)){ aviso('FALHA','O PIN novo tem que ter 6 dígitos.'); return; }
+  if(a !== b){ aviso('FALHA','Os dois PINs não são iguais.'); return; }
+  $('segP1').dataset.enviado = a;
+  enviar('npin' + a);
+};
+$('bSegBloq').onclick = ()=> enviar('bloq');
+$('bSegEsq').onclick  = ()=>{ guardaPin(null); aviso('AVISO','PIN esquecido neste aparelho.'); };
+
+/* ====================== cracha ====================== */
+/*  Programa novo: lista pelo comando clist, cadastro por cadd/cfim, remocao
+ *  por cdel. O nome do operador fica neste aparelho, pelo numero do cartao
+ *  (o mesmo cartao tem o mesmo nome em todas as maquinas).
+ *  Programa antigo: so cadastro/ok na tela de cracha.
+ */
+let craExige = null, craModo = false, craRec = null;
+const chaveNome = uid => 'limitador-cracha:' + uid;
+function nomeDe(uid){ try{ return localStorage.getItem(chaveNome(uid)) || ''; }catch(e){ return ''; } }
+function gravaNome(uid, n){ try{ n ? localStorage.setItem(chaveNome(uid), n) : localStorage.removeItem(chaveNome(uid)); }catch(e){} }
+
+function configCra(o){
+  if(o.cracha !== undefined){
+    craExige = o.cracha === '1';
+    $('craExigeTxt').textContent = craExige ? 'ligado: só liga com crachá' : 'desligado: liga sem crachá';
+    $('bCraExige').textContent = craExige ? 'Desligar' : 'Ligar';
+  }
+  const listaNova = o.ncra !== undefined;
+  $('craNovo').style.display   = listaNova ? '' : 'none';
+  $('craAntigo').style.display = listaNova ? 'none' : '';
+  if(listaNova) $('craTit').textContent = 'Cadastrados: ' + o.ncra;
+}
+
+$('bCraExige').onclick = ()=>{
+  if(craExige === null) return;
+  $('craExigeMsg').innerHTML = craExige
+    ? 'Desligar a exigência: a máquina passa a <b>ligar sem crachá</b>. O controlador reinicia.'
+    : 'Ligar a exigência: a máquina só liga com crachá cadastrado. Confira se há crachás na lista. O controlador reinicia.';
+  $('craExigeConf').classList.add('on');
+};
+$('craExigeNao').onclick = ()=> $('craExigeConf').classList.remove('on');
+$('craExigeSim').onclick = ()=>{
+  $('craExigeConf').classList.remove('on');
+  enviar(craExige ? 'desabilitar' : 'habilitar');
+};
+
+function linhaCra(uid, nova){
+  const d = document.createElement('div');
+  d.className = 'crow' + (nova ? ' novo' : '');
+  d.dataset.uid = uid;
+  d.innerHTML = '<code></code><input type="text" placeholder="nome do operador" autocapitalize="words" autocorrect="off" spellcheck="false"><button class="danger">Remover</button>';
+  d.querySelector('code').textContent = uid;
+  const inp = d.querySelector('input'), b = d.querySelector('button');
+  inp.value = nomeDe(uid);
+  inp.addEventListener('change', ()=> gravaNome(uid, inp.value.trim()));
+  /* remover em dois toques: o primeiro so arma */
+  let armado = null;
+  b.onclick = ()=>{
+    if(!armado){
+      b.textContent = 'Confirmar'; b.classList.add('hit');
+      armado = setTimeout(()=>{ armado = null; b.textContent = 'Remover'; b.classList.remove('hit'); }, 4000);
+      return;
+    }
+    clearTimeout(armado); armado = null;
+    b.disabled = true; b.textContent = '…';
+    enviar('cdel' + uid);
+  };
+  return d;
+}
+function craListaZera(){
+  const L = $('craLista'); while(L.firstChild) L.removeChild(L.firstChild);
+}
+function craVazio(txt){
+  const v = document.createElement('div'); v.id = 'craVazio'; v.textContent = txt;
+  $('craLista').appendChild(v);
+}
+function craQuantos(){
+  const n = $('craLista').querySelectorAll('.crow').length;
+  $('craTit').textContent = 'Cadastrados: ' + n;
+  if(!n && !$('craVazio')) craVazio('Nenhum crachá cadastrado.');
+  if(n && $('craVazio')) $('craVazio').remove();
+}
+function craFimModo(){
+  craModo = false;
+  $('bCraAdd').textContent = 'Cadastrar crachás';
+  $('bCraAdd').className = 'key';
+  $('craNota').textContent = 'Toque em Cadastrar e passe os cartões na leitora, um de cada vez. O nome do operador fica salvo só neste aparelho; a máquina guarda o número do cartão.';
+}
+
+function craMsg(l){
+  let m;
+  if((m = l.match(/^\$CRA n=(\d+)/))){
+    craRec = []; put(l); return;
+  }
+  if((m = l.match(/^\$CRA c ([0-9A-F]{8})/))){
+    if(craRec) craRec.push(m[1]); return;          /* lista: nao enche o terminal */
+  }
+  put(l);
+  if(/^\$CRA fim$/.test(l)){
+    craListaZera();
+    (craRec || []).forEach(u => $('craLista').appendChild(linhaCra(u, false)));
+    craRec = null; craQuantos();
+  } else if((m = l.match(/^\$CRA add ([0-9A-F]{8})/))){
+    if(!$('craLista').querySelector('[data-uid="' + m[1] + '"]')){
+      const d = linhaCra(m[1], true);
+      $('craLista').appendChild(d); craQuantos();
+      if(craModo) d.querySelector('input').focus();
+    }
+    aviso('AVISO', 'Crachá ' + m[1] + ' cadastrado.');
+  } else if((m = l.match(/^\$CRA ja ([0-9A-F]{8})/))){
+    aviso('AVISO', 'Crachá ' + m[1] + (nomeDe(m[1]) ? ' (' + nomeDe(m[1]) + ')' : '') + ' já estava cadastrado.');
+  } else if((m = l.match(/^\$CRA del ([0-9A-F]{8})/))){
+    const d = $('craLista').querySelector('[data-uid="' + m[1] + '"]');
+    if(d) d.remove();
+    craQuantos();
+    aviso('AVISO', 'Crachá ' + m[1] + ' removido.');
+  } else if(/^\$CRA cadastrando/.test(l)){
+    craModo = true;
+    $('bCraAdd').textContent = 'Terminar cadastro';
+    $('bCraAdd').className = 'danger';
+    $('craNota').textContent = 'Passe os cartões na leitora, um de cada vez. Encerra sozinho depois de 60 segundos sem cartão.';
+  } else if(/^\$CRA fim cadastro/.test(l)){
+    craFimModo();
+  } else if((m = l.match(/^\$CRA (liberado|negado) ([0-9A-F]{8})/))){
+    const nome = nomeDe(m[2]);
+    const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    $('craUlt').textContent = 'Último acesso: ' + (nome || m[2]) + ' · ' + m[1] + ' às ' + hora;
+    aviso(m[1] === 'liberado' ? 'AVISO' : 'FALHA',
+          'Crachá ' + (nome ? nome + ' (' + m[2] + ')' : m[2]) + ' ' + m[1] + '.');
+  }
+}
+
+$('bCraAdd').onclick = ()=> enviar(craModo ? 'cfim' : 'cadd');
+$('bCraLer').onclick = ()=> enviar('clist');
+$('dCra').addEventListener('toggle', ()=>{
+  if($('dCra').open && chr && $('craNovo').style.display !== 'none') enviar('clist');
+});
+
 /* ====================== eventos ====================== */
-$('link').onclick = ()=>{
+$('link').onclick = async ()=>{
   if(chr && dev && dev.gatt.connected){
     querConectado = false;            /* saida pedida: nao reconecta */
     telaAcesa(false);
+    if(temPin){ await enviar('bloq'); await espera(150); }   /* trava a maquina ao sair */
     dev.gatt.disconnect();
     desligaTela(); estado('Desconectado');
   } else if(reconectando){
@@ -1506,10 +1819,11 @@ $('csend').onclick = ()=>{
 };
 $('cin').addEventListener('keydown', e=>{ if(e.key==='Enter') $('csend').click(); });
 
-$('lSai').onclick = ()=>{
+$('lSai').onclick = async ()=>{
   gravaMarca(null);
   if(chr && dev && dev.gatt.connected){         /* sair tambem desconecta */
     querConectado = false; telaAcesa(false);
+    if(temPin){ await enviar('bloq'); await espera(150); }
     dev.gatt.disconnect(); desligaTela(); estado('Desconectado');
   }
   document.body.classList.add('trancado');
