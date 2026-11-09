@@ -672,6 +672,7 @@ button{-webkit-tap-highlight-color:transparent; touch-action:manipulation}
         <button id="bSegPin" class="key" disabled>Trocar PIN</button>
         <button id="bSegBloq" disabled>Travar agora</button>
       </div>
+      <p class="note" style="margin:10px 0 0" id="segMsg"></p>
       <div class="row">
         <button id="bSegEsq" disabled>Esquecer PIN neste aparelho</button>
       </div>
@@ -1145,7 +1146,11 @@ function processar(l){
   }
   /* Qualquer recusa do controlador vira aviso na tela, em vez de ficar so
      no terminal onde ninguem olha. */
-  if(l.startsWith('$ERR')){ aviso('FALHA', l.replace('$ERR','').trim()); return; }
+  if(l.startsWith('$ERR')){
+    const t = l.replace('$ERR','').trim();
+    if(/PIN/.test(t)) $('segMsg').textContent = t;
+    aviso('FALHA', t); return;
+  }
 }
 
 let ultAviso = 0;
@@ -1271,6 +1276,7 @@ CAMPOS.forEach(([id])=>{
 });
 
 $('bSalvaPar').onclick = async ()=>{
+  if(precisaPin('parNota')) return;     /* campos continuam marcados para salvar depois */
   const fila2 = [];
   for(const [id,pre] of CAMPOS){
     const e = $(id);
@@ -1586,10 +1592,28 @@ const chavePin = ()=> 'limitador-pin:' + ((dev && dev.name) || 'modulo');
 function pinGuardado(){ try{ return localStorage.getItem(chavePin()); }catch(e){ return null; } }
 function guardaPin(p){ try{ p ? localStorage.setItem(chavePin(), p) : localStorage.removeItem(chavePin()); }catch(e){} }
 
-function mostraPin(msg){
+function mostraPin(msg, rolar){
   $('pinBox').style.display = '';
   $('pinErro').textContent = msg || '';
   $('pinIn').value = '';
+  if(rolar){
+    const bx = $('pinBox');
+    if(bx.scrollIntoView){ try{ bx.scrollIntoView({behavior:'smooth', block:'center'}); }catch(e){ bx.scrollIntoView(); } }
+    setTimeout(()=>{ try{ $('pinIn').focus(); }catch(e){} }, 400);
+  }
+}
+function statusPin(){
+  if(!chr || !temPin) return;
+  estado(((dev && dev.name) || 'Módulo') + ' conectado · ' + (destravado ? 'destravado' : 'travado'), 'on');
+  $('segMsg').textContent = destravado ? '' : 'Máquina travada: digite o PIN atual no quadro do topo antes de trocar.';
+}
+/* Comando que precisa de PIN com a maquina travada: em vez de mandar e
+   receber a recusa la em cima, avisa ali mesmo e leva ate o PIN. */
+function precisaPin(onde){
+  if(!temPin || destravado) return false;
+  if(onde) $(onde).textContent = 'Máquina travada: digite o PIN da máquina no topo da página.';
+  mostraPin('Digite o PIN para continuar.', true);
+  return true;
 }
 function mandaPin(p){ pinMandado = p; enviar('pin' + p); }
 
@@ -1599,6 +1623,7 @@ function configPin(o){
   if(!temPin){ $('pinBox').style.display = 'none'; return; }
   pinPadrao = o.pinpad === '1';
   destravado = o.pin === '1';
+  statusPin();
   if(destravado){ $('pinBox').style.display = 'none'; return; }
   const g = pinGuardado();
   if(g && g !== pinMandado) mandaPin(g);          /* lembrado: destrava sozinho */
@@ -1609,11 +1634,13 @@ function pinMsg(l){
   if(/\$PIN ok/.test(l)){
     destravado = true;
     $('pinBox').style.display = 'none';
+    $('pinErro').textContent = '';
     if($('pinLembra').checked && pinMandado) guardaPin(pinMandado);
-    estado(((dev && dev.name) || 'Módulo') + ' conectado · destravado', 'on');
+    statusPin();
+    $('parNota').textContent = 'Altere o que precisar e toque em salvar. Os campos alterados ficam destacados.';
     if(pinPadrao) aviso('FALHA','Esta máquina ainda usa o PIN de fábrica. Troque em Segurança.');
   } else if(/\$PIN errado/.test(l)){
-    destravado = false;
+    destravado = false; statusPin();
     if(pinGuardado() === pinMandado) guardaPin(null);   /* lembrado e errado: esquece */
     pinMandado = '';
     mostraPin('PIN errado.');
@@ -1624,10 +1651,10 @@ function pinMsg(l){
     destravado = false;
     const g = pinGuardado();
     if(g){ mandaPin(g); aviso('AVISO','Máquina travada, destravando. Repita o comando.'); }
-    else { mostraPin('Este ajuste precisa do PIN.'); aviso('FALHA','Precisa do PIN da máquina.'); }
+    else { mostraPin('Este ajuste precisa do PIN.', true); aviso('FALHA','Precisa do PIN da máquina.'); }
   } else if(/\$PIN bloqueado/.test(l)){
     destravado = false; pinMandado = '';
-    if(chr && querConectado) estado(((dev && dev.name) || 'Módulo') + ' conectado · travado', 'on');
+    if(chr && querConectado) statusPin();
   }
 }
 
@@ -1648,13 +1675,17 @@ function pinTrocado(){
   }
   $('segP1').value = $('segP2').value = ''; $('segP1').dataset.enviado = '';
   pinPadrao = false;
+  $('segMsg').textContent = 'PIN trocado. Anote em lugar seguro.';
   aviso('AVISO','PIN trocado nesta máquina.');
 }
 $('bSegPin').onclick = ()=>{
   const a = $('segP1').value.trim(), b = $('segP2').value.trim();
-  if(!/^\d{6}$/.test(a)){ aviso('FALHA','O PIN novo tem que ter 6 dígitos.'); return; }
-  if(a !== b){ aviso('FALHA','Os dois PINs não são iguais.'); return; }
+  if(precisaPin('segMsg')) return;
+  if(!/^\d{6}$/.test(a)){ $('segMsg').textContent = 'O PIN novo tem que ter 6 dígitos.'; return; }
+  if(a === '000000'){ $('segMsg').textContent = 'O PIN 000000 não é aceito.'; return; }
+  if(a !== b){ $('segMsg').textContent = 'Os dois PINs não são iguais.'; return; }
   $('segP1').dataset.enviado = a;
+  $('segMsg').textContent = 'Gravando…';
   enviar('npin' + a);
 };
 $('bSegBloq').onclick = ()=> enviar('bloq');
@@ -1666,7 +1697,9 @@ $('bSegEsq').onclick  = ()=>{ guardaPin(null); aviso('AVISO','PIN esquecido nest
  *  (o mesmo cartao tem o mesmo nome em todas as maquinas).
  *  Programa antigo: so cadastro/ok na tela de cracha.
  */
-let craExige = null, craModo = false, craRec = null;
+let craExige = null, craModo = false, craRec = null, craNovosSessao = 0;
+const craNotaModo = ()=> 'Passe os cartões na leitora, um de cada vez. O resultado aparece aqui e no display da máquina. ' +
+  (craNovosSessao ? craNovosSessao + ' novo(s) até agora. ' : '') + 'Encerra sozinho depois de 60 segundos sem cartão.';
 const chaveNome = uid => 'limitador-cracha:' + uid;
 function nomeDe(uid){ try{ return localStorage.getItem(chaveNome(uid)) || ''; }catch(e){ return ''; } }
 function gravaNome(uid, n){ try{ n ? localStorage.setItem(chaveNome(uid), n) : localStorage.removeItem(chaveNome(uid)); }catch(e){} }
@@ -1758,6 +1791,7 @@ function craMsg(l){
       $('craLista').appendChild(d); craQuantos();
       if(craModo) d.querySelector('input').focus();
     }
+    if(craModo){ craNovosSessao++; $('craNota').textContent = craNotaModo(); }
     aviso('AVISO', 'Crachá ' + m[1] + ' cadastrado.');
   } else if((m = l.match(/^\$CRA ja ([0-9A-F]{8})/))){
     aviso('AVISO', 'Crachá ' + m[1] + (nomeDe(m[1]) ? ' (' + nomeDe(m[1]) + ')' : '') + ' já estava cadastrado.');
@@ -1767,12 +1801,20 @@ function craMsg(l){
     craQuantos();
     aviso('AVISO', 'Crachá ' + m[1] + ' removido.');
   } else if(/^\$CRA cadastrando/.test(l)){
-    craModo = true;
+    craModo = true; craNovosSessao = 0;
     $('bCraAdd').textContent = 'Terminar cadastro';
     $('bCraAdd').className = 'danger';
-    $('craNota').textContent = 'Passe os cartões na leitora, um de cada vez. Encerra sozinho depois de 60 segundos sem cartão.';
+    $('craNota').textContent = craNotaModo();
   } else if(/^\$CRA fim cadastro/.test(l)){
+    const n = (l.match(/n=(\d+)/) || [])[1];
+    const era = craModo;
     craFimModo();
+    if(era || n !== undefined){
+      const k = n !== undefined ? +n : craNovosSessao;
+      aviso('AVISO', 'Cadastro encerrado: ' + (k ? k + ' crachá(s) novo(s).' : 'nenhum crachá novo.'));
+      $('craUlt').textContent = 'Último cadastro: ' + k + ' novo(s) às ' +
+        new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    }
   } else if((m = l.match(/^\$CRA (liberado|negado) ([0-9A-F]{8})/))){
     const nome = nomeDe(m[2]);
     const hora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
