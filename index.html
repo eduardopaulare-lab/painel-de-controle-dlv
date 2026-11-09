@@ -251,9 +251,9 @@ input[type=range]{width:100%; height:42px; accent-color:var(--brass); margin:0}
     </svg>
 
     <div class="tune">
-      <span class="liv"  id="tLiv">Pedal livre</span>
-      <span class="cons" id="tLim">Limitando</span>
-      <span class="agr"  id="tAuto">Auto-ajuste</span>
+      <span class="cons" id="tCons">Mansa</span>
+      <span class="agr"  id="tAgr">Agressiva</span>
+      <span class="liv" id="tLiv">Pedal livre</span>
       <span class="cut" id="tCt">Troca</span>
       <span class="cut"  id="tCut">Cortando</span>
     </div>
@@ -299,41 +299,54 @@ input[type=range]{width:100%; height:42px; accent-color:var(--brass); margin:0}
 
   <div class="panel">
     <h2>Sintonia</h2>
-    <p class="note" style="margin:0 0 12px">O auto-ajuste mede a máquina e calcula
-    o controle sozinho. Numa reta de <b>80 a 100 m</b>, com a carga de costume:
-    toque em <b>Auto-ajuste</b>, pise fundo e segure. Ele chega no limite, oscila
-    de leve em volta dele e termina sozinho em uns 20 a 40 segundos. Soltar o
-    pedal, frear ou trocar de marcha cancela sem mudar nada.</p>
+    <p class="note" style="margin:0 0 12px">Três ajustes, aplicados na hora com a
+    máquina andando. Os seis ganhos ficam no ajuste fino, se precisar.</p>
 
-    <div class="reads" style="margin-top:0">
-      <div><b id="gKp">--</b><small>kP</small></div>
-      <div><b id="gKi">--</b><small>kI</small></div>
-      <div><b id="gKd">--</b><small>kD</small></div>
-      <div><b id="gBase">--</b><small>Base no limite</small></div>
+    <div class="row" style="margin:0 0 14px">
+      <button id="pSuave" disabled>Suave</button>
+      <button id="pNormal" disabled>Equilibrado</button>
+      <button id="pFirme" disabled>Firme</button>
     </div>
 
-    <div class="bignum" style="margin:12px 0 0">
-      <b id="gEst" style="font-size:20px">parado</b><small>auto-ajuste</small>
+    <div class="sld">
+      <div class="slab"><span>Reação</span><b id="vReac">--</b></div>
+      <input type="range" id="sReac" min="0" max="100" value="50" disabled>
+      <em>Com que força ele fecha o acelerador ao chegar no limite. Mais reação
+      chega mais rápido na trava; demais e passa do ponto e volta.</em>
+    </div>
+
+    <div class="sld">
+      <div class="slab"><span>Antecipação</span><b id="vAnt">--</b></div>
+      <input type="range" id="sAnt" min="0" max="100" value="50" disabled>
+      <em>Começar a fechar antes de cruzar o limite. Sobe isto se a velocidade
+      ultrapassa e depois volta. Alto demais deixa o acelerador nervoso.</em>
+    </div>
+
+    <div class="sld">
+      <div class="slab"><span>Firmeza na trava</span><b id="vFirm">--</b></div>
+      <input type="range" id="sFirm" min="0" max="100" value="50" disabled>
+      <em>Quanto ele segura cravado depois de estabilizar. Se ficar caçando em
+      torno do limite, baixe. Se ficar abaixo do limite, suba.</em>
     </div>
 
     <div class="row">
-      <button id="bAuto" class="key" disabled>Auto-ajuste</button>
-    </div>
-    <div class="row">
-      <button id="bPidSalva" disabled>Gravar na memória</button>
+      <button id="bPidSalva" class="key" disabled>Gravar na memória</button>
       <button id="bPidVolta" disabled>Descartar</button>
     </div>
-    <p class="note" style="margin:10px 0 0" id="pidNota">O resultado já vale na hora.
-    Ande para conferir e grave se gostar; desligar sem gravar volta ao anterior.</p>
+    <p class="note" style="margin:10px 0 0" id="pidNota">Mexer num controle já
+    aplica. Gravar é o que mantém depois de desligar.</p>
 
     <details style="margin:12px 0 0">
-      <summary>Ajuste manual</summary>
+      <summary>Ajuste fino</summary>
       <div class="inner">
-        <p class="note" style="margin:8px 0 0">Só para correção. Aplica na hora,
-        grava com o botão acima.</p>
-        <div class="prow"><label>kP<em>força do corte</em></label><input id="fKp" type="text" inputmode="decimal" disabled></div>
-        <div class="prow"><label>kI<em>firmeza na trava</em></label><input id="fKi" type="text" inputmode="decimal" disabled></div>
-        <div class="prow"><label>kD<em>antecipação, normalmente 0</em></label><input id="fKd" type="text" inputmode="decimal" disabled></div>
+        <div class="grp">Perto do limite</div>
+        <div class="prow"><label>kP conservador</label><input id="fCkp" type="text" inputmode="decimal" disabled></div>
+        <div class="prow"><label>kI conservador</label><input id="fCki" type="text" inputmode="decimal" disabled></div>
+        <div class="prow"><label>kD conservador</label><input id="fCkd" type="text" inputmode="decimal" disabled></div>
+        <div class="grp">Longe do limite</div>
+        <div class="prow"><label>kP agressivo</label><input id="fAkp" type="text" inputmode="decimal" disabled></div>
+        <div class="prow"><label>kI agressivo</label><input id="fAki" type="text" inputmode="decimal" disabled></div>
+        <div class="prow"><label>kD agressivo</label><input id="fAkd" type="text" inputmode="decimal" disabled></div>
       </div>
     </details>
   </div>
@@ -624,7 +637,8 @@ function liberar(on){
   ['bTele','bZoom','bLer','bSalvaPar',
    'cin','csend','bCad','bOk',
    'fVel','fAju','fMar','fMode','fCpc','fCms',
-   'fKp','fKi','fKd','bAuto','bPidSalva','bPidVolta',
+   'fCkp','fCki','fCkd','fAkp','fAki','fAkd',
+   'sReac','sAnt','sFirm','pSuave','pNormal','pFirme','bPidSalva','bPidVolta',
    'bCal0','bCal1','bZpul','bCmp']
    .forEach(i => $(i).disabled = !on);
 }
@@ -688,8 +702,7 @@ function caiu(){
   $('link').textContent = 'Conectar';
   $('bTele').className = '';
   estado('Conexão perdida');
-  ['tLim','tAuto','tCut','tLiv','tCt'].forEach((id,i)=> $(id).className = ['cons','agr','cut','liv','cut'][i]);
-  autoRodando(false);
+  ['tCons','tAgr','tCut','tLiv','tCt'].forEach((id,i)=> $(id).className = ['cons','agr','cut','liv','cut'][i]);
 }
 
 function chegou(ev){
@@ -714,10 +727,6 @@ function campos(l){
 function processar(l){
   if(l.startsWith('$T ')){ amostra(campos(l)); return; }
   if(l.startsWith('$CFG')){ config(campos(l)); put(l); return; }
-
-  if(l.startsWith('$AT')){ put(l); autoMsg(l); return; }
-  /* resposta dos comandos manuais kp/ki/kd: "$kp=12.00" */
-  if(/^\$k[pid]=/.test(l)){ put(l); mostraGanhos(campos(l)); return; }
 
   put(l);
   if(/\$TELE ligada/i.test(l)){ teleOn = true;  $('bTele').className = 'live'; return; }
@@ -796,12 +805,10 @@ function amostra(o){
   $('rAlm').style.color   = d.al ? 'var(--signal)'
                           : d.ar ? 'var(--brass)' : '';
 
-  /* g = l (pedal livre), p (PID limitando), b/x (auto-ajuste: base/oscilando) */
+  /* g = l (pedal livre, PID fora), c (sintonia mansa), a (agressiva) */
   const cortando = d.g !== 'l' && d.te < d.p - 1;
-  const auto = d.g === 'b' || d.g === 'x';
-  $('tLim').className  = 'cons' + (d.g === 'p' ? ' hit' : '');
-  $('tAuto').className = 'agr'  + (auto ? ' hit' : '');
-  if(auto && !atRodando) autoRodando(true);
+  $('tCons').className = 'cons' + (d.g === 'c' ? ' hit' : '');
+  $('tAgr').className  = 'agr'  + (d.g === 'a' ? ' hit' : '');
   $('tCut').className  = 'cut'  + (cortando ? ' hit' : '');
   $('tLiv').className  = 'liv'  + (d.g === 'l' ? ' hit' : '');
   $('tCt').className   = 'cut'  + (d.ct ? ' hit' : '');
@@ -817,7 +824,8 @@ function config(o){
   const set = (id,val)=>{ const e=$(id); if(val!==undefined){ e.value=val; e.dataset.orig=val; e.classList.remove('dirty'); } };
   set('fVel', o.velmax);  set('fAju', o.ajuste);  set('fMar', o.marcha);
   set('fCpc', o.cpc);     set('fCms', o.cms);
-  mostraGanhos(o);
+  set('fCkp', o.ckp); set('fCki', o.cki); set('fCkd', o.ckd);
+  set('fAkp', o.akp); set('fAki', o.aki); set('fAkd', o.akd);
   if(o.mode){ $('fMode').value = o.mode; $('fMode').dataset.orig = o.mode; }
   $('rPmin').textContent = o.pmin || '--';
   $('rPmax').textContent = o.pmax || '--';
@@ -827,13 +835,14 @@ function config(o){
     (NOME_MODO[+o.mode]||'--') + '</b>, ' + (parseFloat(o.cmp)||0).toFixed(2).replace('.',',') +
     ' cm por pulso.';
   if(o.velmax) escala(parseFloat(o.velmax));
+  slidersDosGanhos();
 }
 
 function marcaSujo(id){
   const e = $(id);
   e.addEventListener('input', ()=> e.classList.toggle('dirty', e.value !== e.dataset.orig));
 }
-['fVel','fAju','fMar','fCpc','fCms','fKp','fKi','fKd'].forEach(marcaSujo);
+['fVel','fAju','fMar','fCpc','fCms','fCkp','fCki','fCkd','fAkp','fAki','fAkd'].forEach(marcaSujo);
 
 /*  Os campos do limitador nao gravam sozinhos: ficam marcados e vao todos
  *  juntos no botao salvar. Cada comando grava direto na EEPROM do
@@ -878,69 +887,85 @@ $('fMode').addEventListener('change', e=>{
 });
 
 /* ====================== sintonia ====================== */
-/*  Um PID so, ajustado pelo auto-ajuste do controlador (comando "auto").
- *  O controlador fala em linhas "$AT ...":
- *    $AT armado ...           esperando chegar no limite com o pedal no fundo
- *    $AT no limite ...        medindo a base
- *    $AT base=62.6 oscilando  rele ligado
- *    $AT ciclo 3/8
- *    $AT corrigindo base=..   rele travado, ajustou sozinho
- *    $AT ok kp= ki= kd= base= ku= tu= amp=
- *    $AT abortado: motivo
+/*  Tres controles no lugar de seis ganhos. Cada um multiplica um par de
+ *  ganhos por um fator que vai de um quarto ao quadruplo do valor de
+ *  referencia, com o meio da escala valendo exatamente a referencia.
+ *      fator = 2^((pos - 50) / 25)
  */
-let atRodando = false;
+const BASE = { akp:12, aki:8, akd:0.6, ckp:4, cki:3, ckd:0.3 };
+const fator = pos => Math.pow(2, (pos - 50) / 25);
+const arred = x => Math.round(x * 100) / 100;
 
-function autoRodando(on){
-  atRodando = on;
-  const b = $('bAuto');
-  b.textContent = on ? 'Cancelar auto-ajuste' : 'Auto-ajuste';
-  b.className   = on ? 'danger' : 'key';
-  if(!on && $('gEst').textContent !== 'concluído') $('gEst').textContent = 'parado';
-}
+let tSld = 0;
 
-function mostraGanhos(o){
-  const um = (id, campo, v)=>{
-    if(v === undefined) return;
-    const n = parseFloat(v); if(isNaN(n)) return;
-    $(id).textContent = br(n, 2);
-    $(campo).value = String(n); $(campo).dataset.orig = String(n);
-    $(campo).classList.remove('dirty');
+function ganhosDosSliders(){
+  const fr = fator(+$('sReac').value);
+  const fa = fator(+$('sAnt').value);
+  const ff = fator(+$('sFirm').value);
+  return {
+    akp: arred(BASE.akp*fr), aki: arred(BASE.aki*fr), akd: arred(BASE.akd*fa),
+    ckp: arred(BASE.ckp*ff), cki: arred(BASE.cki*ff), ckd: arred(BASE.ckd*fa)
   };
-  um('gKp','fKp', o.kp); um('gKi','fKi', o.ki); um('gKd','fKd', o.kd);
-  if(o.base !== undefined){
-    const b = parseFloat(o.base);
-    $('gBase').textContent = (b > 0) ? Math.round(b*100) + '%' : 'não medida';
-  }
 }
 
-function autoMsg(l){
-  if(/^\$AT armado/.test(l)){
-    autoRodando(true); $('gEst').textContent = 'pise fundo até o limite';
-  } else if(/^\$AT no limite/.test(l)){
-    $('gEst').textContent = 'medindo a base';
-  } else if(/^\$AT base=/.test(l)){
-    $('gEst').textContent = 'oscilando';
-  } else if(/^\$AT corrigindo/.test(l)){
-    $('gEst').textContent = 'corrigindo a base';
-  } else if(/^\$AT ciclo/.test(l)){
-    const m = l.match(/ciclo (\d+)\/(\d+)/);
-    if(m) $('gEst').textContent = 'ciclo ' + m[1] + ' de ' + m[2];
-  } else if(/^\$AT ok/.test(l)){
-    mostraGanhos(campos(l));
-    $('gEst').textContent = 'concluído';
-    autoRodando(false);
-    $('pidNota').textContent = 'Auto-ajuste aplicado. Ande para conferir e grave se gostar.';
-    aviso('AVISO', 'Auto-ajuste concluído');
-  } else if(/^\$AT abortado/.test(l)){
-    autoRodando(false);
-    aviso('FALHA', 'Auto-ajuste cancelado: ' + l.replace(/^\$AT abortado:\s*/, ''));
-  }
+/* caminho inverso: posiciona os sliders a partir dos ganhos lidos */
+function slidersDosGanhos(){
+  const pos = (val, base)=>{
+    const v = parseFloat(val);
+    if(!(v > 0) || !(base > 0)) return 50;
+    return Math.round(Math.min(100, Math.max(0, 50 + 25*Math.log2(v/base))));
+  };
+  $('sReac').value = pos(cfg.akp, BASE.akp);
+  $('sAnt').value  = pos(cfg.akd, BASE.akd);
+  $('sFirm').value = pos(cfg.ckp, BASE.ckp);
+  rotulos();
 }
 
-$('bAuto').onclick = ()=>{
-  if(!atRodando) $('gEst').textContent = 'iniciando…';
-  enviar('auto');           /* o mesmo comando liga e cancela */
-};
+function rotulos(){
+  $('vReac').textContent = $('sReac').value;
+  $('vAnt').textContent  = $('sAnt').value;
+  $('vFirm').textContent = $('sFirm').value;
+}
+
+function espelhaCampos(g){
+  const put2 = (id,v)=>{ $(id).value = String(v); $(id).dataset.orig = String(v);
+                         $(id).classList.remove('dirty'); };
+  put2('fCkp',g.ckp); put2('fCki',g.cki); put2('fCkd',g.ckd);
+  put2('fAkp',g.akp); put2('fAki',g.aki); put2('fAkd',g.akd);
+}
+
+/*  Cada ganho vai num comando direto, que aplica na hora e NAO grava.
+ *  Gravar e um passo separado, senao arrastar um controle castigaria a
+ *  EEPROM com uma escrita por movimento.
+ */
+async function aplicaGanhos(g){
+  await sequencia(['ckp'+g.ckp, 'cki'+g.cki, 'ckd'+g.ckd,
+                   'akp'+g.akp, 'aki'+g.aki, 'akd'+g.akd], 150);
+  espelhaCampos(g);
+  $('pidNota').textContent = 'Aplicado. Ainda não gravado.';
+}
+
+function mexeuSlider(){
+  rotulos();
+  const agora = Date.now();
+  if(agora - tSld < 400) return;
+  tSld = agora;
+  aplicaGanhos(ganhosDosSliders());
+}
+['sReac','sAnt','sFirm'].forEach(id=>{
+  $(id).addEventListener('input', mexeuSlider);
+  $(id).addEventListener('change', ()=>{ tSld = 0; mexeuSlider(); });
+});
+
+function preset(r,a,f){
+  $('sReac').value = r; $('sAnt').value = a; $('sFirm').value = f;
+  rotulos();
+  tSld = 0;
+  aplicaGanhos(ganhosDosSliders());
+}
+$('pSuave').onclick  = ()=> preset(35,40,40);
+$('pNormal').onclick = ()=> preset(50,50,50);
+$('pFirme').onclick  = ()=> preset(70,65,60);
 
 $('bPidSalva').onclick = async ()=>{
   await enviar('pidsave');
@@ -953,15 +978,16 @@ $('bPidVolta').onclick = async ()=>{
   await espera(500); enviar('ver');
 };
 
-/* ajuste manual: aplica direto */
-[['fKp','kp'],['fKi','ki'],['fKd','kd']].forEach(([id,cmd])=>{
+/* campos do ajuste fino: aplicam direto e tiram os sliders do lugar */
+[['fCkp','ckp'],['fCki','cki'],['fCkd','ckd'],
+ ['fAkp','akp'],['fAki','aki'],['fAkd','akd']].forEach(([id,letra])=>{
   const e = $(id);
   const manda = async ()=>{
     const x = parseFloat(String(e.value).replace(',','.'));
     if(isNaN(x) || e.value === e.dataset.orig) return;
-    await enviar(cmd + x);
+    await enviar(letra + x);
     e.dataset.orig = String(x); e.classList.remove('dirty');
-    $('pidNota').textContent = 'Ajuste manual aplicado. Ainda não gravado.';
+    $('pidNota').textContent = 'Ajuste fino aplicado. Ainda não gravado.';
   };
   e.addEventListener('blur', manda);
   e.addEventListener('keydown', ev=>{ if(ev.key==='Enter'){ ev.preventDefault(); e.blur(); }});
