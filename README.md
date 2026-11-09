@@ -1,2 +1,2 @@
 # painel-de-controle-dlv
-comfigurar o dispositivo dlv
+configurar o dispositivo dlv
