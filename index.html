@@ -220,6 +220,28 @@ input[type=range]{width:100%; height:42px; accent-color:var(--brass); margin:0}
 .note b{color:var(--ink)}
 .warnbox{border:1px solid var(--brass); border-left-width:4px; border-radius:5px;
   padding:11px 13px; font-size:13.5px; background:var(--panel); margin:10px 0 0}
+/* ---- tela de senha ---- */
+#login{display:none; min-height:100vh; align-items:center; justify-content:center;
+  padding:24px 14px}
+body.trancado #login{display:flex}
+body.trancado .wrap{display:none}
+.lbox{width:100%; max-width:360px; background:var(--panel); border:1px solid var(--rule);
+  border-radius:6px; padding:22px 18px}
+.lbox h1{margin:0 0 4px}
+.lbox input[type=password],.lbox input[type=text]{
+  width:100%; font:inherit; font-size:16px; padding:11px 12px; min-height:46px;
+  border:1px solid var(--rule); border-radius:5px; background:var(--panel-2); color:var(--ink);
+  margin:14px 0 10px}
+.lbox input:focus{outline:2px solid var(--brass); outline-offset:-1px}
+.lbox button{width:100%}
+.lbox .lem{display:flex; align-items:center; gap:8px; font-size:14px; color:var(--ink-soft);
+  margin:0 0 14px}
+.lbox .lem input{width:20px; height:20px; margin:0; accent-color:var(--brass)}
+#lErro{color:var(--signal); font-size:14px; min-height:20px; margin:10px 0 0}
+#gerador{display:none; margin-top:18px; padding-top:14px; border-top:1px solid var(--rule-soft)}
+#gerador code{display:block; font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  font-size:12px; overflow-wrap:anywhere; background:var(--panel-2); padding:10px;
+  border-radius:5px; margin-top:8px; user-select:all; -webkit-user-select:all}
 .conf{display:none}
 .conf.on{display:block}
 .conf .row{margin-top:8px}
@@ -228,7 +250,31 @@ button{-webkit-tap-highlight-color:transparent; touch-action:manipulation}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
-<body>
+<body class="trancado">
+
+<!-- TELA DE SENHA. Fica na frente de tudo ate a senha certa. -->
+<div id="login">
+  <div class="lbox">
+    <h1>Limitador</h1>
+    <p class="note" style="margin:0">Painel de configuração. Digite a senha.</p>
+    <input id="lSenha" type="password" autocomplete="current-password"
+           autocapitalize="off" autocorrect="off" spellcheck="false"
+           enterkeyhint="go" placeholder="senha">
+    <label class="lem"><input type="checkbox" id="lLembra"> manter liberado neste aparelho</label>
+    <button class="key" id="lEntra">Entrar</button>
+    <p id="lErro"></p>
+
+    <!-- Gerador de senha nova: abra a pagina com #gerar-senha no fim do endereco -->
+    <div id="gerador">
+      <p class="note" style="margin:0"><b>Trocar a senha.</b> Digite a senha nova; copie
+      a linha que aparece e cole no index.html no lugar da linha <b>const SENHA_HASH</b>.</p>
+      <input id="gNova" type="text" autocapitalize="off" autocorrect="off"
+             spellcheck="false" placeholder="senha nova">
+      <code id="gLinha">const SENHA_HASH = '...';</code>
+    </div>
+  </div>
+</div>
+
 <div class="wrap">
 
   <div class="bar">
@@ -238,6 +284,7 @@ button{-webkit-tap-highlight-color:transparent; touch-action:manipulation}
       <div class="sub" id="status">Desconectado</div>
     </div>
     <button class="key" id="link">Conectar</button>
+    <button id="lSai" title="Sair do painel" style="min-width:0;padding:11px 12px">Sair</button>
   </div>
 
   <p class="note" id="hint">Funciona no <b>Chrome do Android</b>, no <b>Bluefy do iPhone</b>
@@ -367,9 +414,11 @@ button{-webkit-tap-highlight-color:transparent; touch-action:manipulation}
     <h2>Sintonia</h2>
     <p class="note" style="margin:0 0 12px">O auto-ajuste mede a máquina e calcula
     o controle sozinho. Numa reta de <b>80 a 100 m</b>, com a carga de costume:
-    toque em <b>Auto-ajuste</b>, pise fundo e segure. Ele chega no limite, oscila
-    de leve em volta dele e termina sozinho em uns 20 a 40 segundos. Soltar o
-    pedal, frear ou trocar de marcha cancela sem mudar nada.</p>
+    toque em <b>Auto-ajuste</b>, pise fundo e segure. A segunda marcha entra
+    normalmente na subida; a medição só começa depois, já no limite. Ali ele
+    oscila de leve em volta do limite e termina sozinho em uns 20 a 40 segundos.
+    Soltar o pedal ou frear cancela sem mudar nada.</p>
+    <p class="warnbox" id="atMarcha" style="display:none;margin:0 0 12px"></p>
 
     <div class="reads" style="margin-top:0">
       <div><b id="gKp">--</b><small>kP</small></div>
@@ -557,6 +606,95 @@ button{-webkit-tap-highlight-color:transparent; touch-action:manipulation}
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
+
+/* ====================== senha do painel ====================== */
+/*  A senha NAO fica escrita aqui: fica so o "hash" dela (uma impressao
+ *  digital de mao unica). Para trocar, abra o painel com #gerar-senha no fim
+ *  do endereco, digite a senha nova e cole a linha gerada no lugar desta.
+ *
+ *  Senha atual de fabrica: paulare   (TROQUE antes de publicar)
+ */
+const SENHA_HASH = '5f0d401a594abe5b995a81ee8a0fc4f497fa6e59b5a7ac271a3abae81a547ea5';
+const SAL = 'paulare-limitador|';
+
+/* SHA-256 escrito aqui mesmo: o crypto.subtle do navegador nem sempre
+   existe (depende do navegador e do endereco), e assim funciona igual em
+   qualquer um. */
+function sha256(txt){
+  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+  0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+  0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+  0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+  0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+  0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+  0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+  0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  const b=Array.from(unescape(encodeURIComponent(txt))).map(c=>c.charCodeAt(0));
+  const L=b.length*8; b.push(0x80); while(b.length%64!==56) b.push(0);
+  for(let i=7;i>=0;i--) b.push(i>3 ? 0 : (L>>>(i*8))&255);
+  let h=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const R=(x,n)=>(x>>>n)|(x<<(32-n)), w=new Array(64);
+  for(let o=0;o<b.length;o+=64){
+    for(let i=0;i<16;i++) w[i]=(b[o+4*i]<<24)|(b[o+4*i+1]<<16)|(b[o+4*i+2]<<8)|b[o+4*i+3];
+    for(let i=16;i<64;i++){
+      const s0=R(w[i-15],7)^R(w[i-15],18)^(w[i-15]>>>3), s1=R(w[i-2],17)^R(w[i-2],19)^(w[i-2]>>>10);
+      w[i]=(w[i-16]+s0+w[i-7]+s1)|0;
+    }
+    let [a,bb,c,d,e,f,g,hh]=h;
+    for(let i=0;i<64;i++){
+      const t1=(hh+(R(e,6)^R(e,11)^R(e,25))+((e&f)^(~e&g))+K[i]+w[i])|0;
+      const t2=((R(a,2)^R(a,13)^R(a,22))+((a&bb)^(a&c)^(bb&c)))|0;
+      hh=g; g=f; f=e; e=(d+t1)|0; d=c; c=bb; bb=a; a=(t1+t2)|0;
+    }
+    h=[h[0]+a,h[1]+bb,h[2]+c,h[3]+d,h[4]+e,h[5]+f,h[6]+g,h[7]+hh].map(x=>x|0);
+  }
+  return h.map(x=>(x>>>0).toString(16).padStart(8,'0')).join('');
+}
+const hashSenha = p => sha256(SAL + p);
+
+/* "manter liberado" guarda a marca no aparelho. Guarda o proprio hash: se a
+   senha for trocada no GitHub, todo mundo precisa digitar a nova. */
+const CHAVE = 'limitador-liberado';
+function lerMarca(){ try{ return localStorage.getItem(CHAVE); }catch(e){ return null; } }
+function gravaMarca(v){ try{ v ? localStorage.setItem(CHAVE, v) : localStorage.removeItem(CHAVE); }catch(e){} }
+
+let erros = 0, bloqueadoAte = 0;
+function libera(){
+  document.body.classList.remove('trancado');
+  $('lSenha').value = '';
+  if(typeof size === 'function') setTimeout(size, 0);   /* grafico mede a largura visivel */
+}
+function entrar(){
+  const agora = Date.now();
+  if(agora < bloqueadoAte){
+    $('lErro').textContent = 'Muitas tentativas. Aguarde ' +
+      Math.ceil((bloqueadoAte - agora)/1000) + ' s.';
+    return;
+  }
+  if(hashSenha($('lSenha').value) === SENHA_HASH){
+    erros = 0; $('lErro').textContent = '';
+    gravaMarca($('lLembra').checked ? SENHA_HASH : null);
+    libera();
+  } else {
+    erros++;
+    $('lSenha').value = '';
+    if(erros >= 5){ bloqueadoAte = agora + 30000; erros = 0;
+      $('lErro').textContent = 'Senha errada 5 vezes. Aguarde 30 s.'; }
+    else $('lErro').textContent = 'Senha errada.';
+  }
+}
+$('lEntra').onclick = entrar;
+$('lSenha').addEventListener('keydown', e=>{ if(e.key === 'Enter') entrar(); });
+
+if(location.hash === '#gerar-senha'){
+  $('gerador').style.display = 'block';
+  $('gNova').addEventListener('input', ()=>{
+    const v = $('gNova').value;
+    $('gLinha').textContent = v ? "const SENHA_HASH = '" + hashSenha(v) + "';" : "const SENHA_HASH = '...';";
+  });
+} else if(lerMarca() === SENHA_HASH){
+  libera();
+}
 const br = (n,d=1) => Number(n).toFixed(d).replace('.',',');
 
 /* ====================== mostrador ====================== */
@@ -1008,6 +1146,7 @@ function config(o){
     (NOME_MODO[+o.mode]||'--') + '</b>, ' + (parseFloat(o.cmp)||0).toFixed(2).replace('.',',') +
     ' cm por pulso.';
   if(o.velmax) escala(parseFloat(o.velmax));
+  avisoMarcha(o);
   if(fw === 'antigo') slidersDosGanhos();
 }
 
@@ -1194,6 +1333,22 @@ function autoRodando(on){
   if(!on && $('gEst').textContent !== 'concluído') $('gEst').textContent = 'parado';
 }
 
+/*  Durante a oscilacao a velocidade vai de ~1 km/h abaixo a ~1 km/h acima do
+ *  limite. Se a troca de marcha estiver nessa faixa, a marcha troca no meio
+ *  da medicao e o controlador cancela (a resposta da maquina muda com a
+ *  marcha). Com troca em 7 e limite 10, como de fabrica, nao acontece.
+ */
+function avisoMarcha(o){
+  const lim = parseFloat(o.velmax), mar = parseFloat(o.marcha), box = $('atMarcha');
+  if(isNaN(lim) || isNaN(mar)) return;
+  if(Math.abs(mar - lim) < 2){
+    box.style.display = '';
+    box.innerHTML = 'A troca de marcha (<b>' + mar + ' km/h</b>) está muito perto do limite (<b>' +
+      lim + ' km/h</b>). Durante a oscilação a marcha vai trocar e o auto-ajuste cancela. ' +
+      'Para ajustar, deixe a troca pelo menos 2 km/h abaixo do limite.';
+  } else box.style.display = 'none';
+}
+
 function mostraGanhos(o){
   const um = (id, campo, v)=>{
     if(v === undefined) return;
@@ -1350,6 +1505,16 @@ $('csend').onclick = ()=>{
   if(v){ enviar(v); $('cin').value=''; }
 };
 $('cin').addEventListener('keydown', e=>{ if(e.key==='Enter') $('csend').click(); });
+
+$('lSai').onclick = ()=>{
+  gravaMarca(null);
+  if(chr && dev && dev.gatt.connected){         /* sair tambem desconecta */
+    querConectado = false; telaAcesa(false);
+    dev.gatt.disconnect(); desligaTela(); estado('Desconectado');
+  }
+  document.body.classList.add('trancado');
+  $('lErro').textContent = '';
+};
 
 size();
 paintDial(0,0);
