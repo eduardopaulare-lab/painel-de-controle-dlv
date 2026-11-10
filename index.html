@@ -8,6 +8,13 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <meta name="theme-color" content="#0A1118">
+<!-- instalar como aplicativo: no Android abre em tela cheia, sem barra de endereco -->
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icone-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
 /* =====================================================================
    Painel do limitador - painel de instrumentos escuro
@@ -79,6 +86,8 @@ button.warn{color:var(--warn); border-color:var(--warn)}
 button.warn.hit{background:var(--warn); color:#1A1204}
 button.live{border-color:var(--ok); color:var(--ok)}
 button.hit{border-color:var(--ok); color:var(--ok)}
+button.ico{min-width:46px; padding:0; display:grid; place-items:center}
+button.ico[hidden]{display:none}
 
 /* ---------- cartoes ---------- */
 .panel{
@@ -354,6 +363,11 @@ body.trancado .wrap{display:none}
     </div>
     <button class="key" id="link">Conectar</button>
     <button id="lSai" title="Sair do painel" style="min-width:0;padding:11px 12px">Sair</button>
+    <button id="bTela" class="ico" title="Tela cheia" aria-label="Tela cheia" hidden>
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path id="icoTela" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>
+      </svg>
+    </button>
   </div>
 
   <p class="note" id="hint">Funciona no <b>Chrome do Android</b>, no <b>Bluefy do iPhone</b>
@@ -710,6 +724,10 @@ body.trancado .wrap{display:none}
         </div>
       </div>
 
+      <div class="reads" style="margin-top:12px">
+        <div><b id="cGrav">--</b><small>cm por pulso gravado na máquina (o que o velocímetro usa)</small></div>
+        <div><b id="cOrig">--</b><small id="cOrigTxt">origem do valor</small></div>
+      </div>
       <p class="note" style="margin:14px 0 0"><b>1.</b> Zere o contador. <b>2.</b> Faça o
       percurso (ou dê as voltas na roda). <b>3.</b> Pare e toque em <b>Terminar medição</b>:
       o que a roda girar depois disso não conta mais. <b>4.</b> Grave.</p>
@@ -724,6 +742,8 @@ body.trancado .wrap{display:none}
 
       <div class="resbox" id="cRes">Zere o contador, faça o percurso e o resultado
       aparece aqui.</div>
+      <p class="note" style="margin:6px 0 0">Este é o resultado da medição em andamento; só vale
+      depois de gravar.</p>
       <div class="row">
         <button id="bCmp" class="key" disabled>Gravar no controlador</button>
       </div>
@@ -1264,6 +1284,8 @@ function processar(l){
     put(l);
     const v = l.slice(8);
     $('cNota').textContent = 'Gravado: ' + String(v).replace('.',',') + ' cm por pulso. O velocímetro já usa o valor novo.';
+    $('cGrav').textContent = String(v).replace('.',','); $('cOrig').textContent = 'medido';
+    $('cOrigTxt').textContent = 'pela calibração do velocímetro';
     aviso('AVISO','Velocímetro calibrado: ' + String(v).replace('.',',') + ' cm por pulso.');
     return;
   }
@@ -1404,9 +1426,18 @@ function config(o){
   $('uAju').textContent = o.mode === '3' ? 'PWM, 204 = 4 V'
                         : o.mode === '2' ? 'grau de fundo' : 'graus';
   $('pNote').innerHTML = 'Limite <b>' + (o.velmax||'--') + ' km/h</b>, acelerador <b>' +
-    (NOME_MODO[+o.mode]||'--') + '</b>, ' + (parseFloat(o.cmp)||0).toFixed(2).replace('.',',') +
-    ' cm por pulso.';
+    (NOME_MODO[+o.mode]||'--') + '</b>, velocímetro <b>' + (parseFloat(o.cmp)||0).toFixed(3).replace('.',',') +
+    ' cm por pulso</b> (gravado na máquina).';
   if(o.velmax) escala(parseFloat(o.velmax));
+  if(o.cmp !== undefined){
+    const c = parseFloat(o.cmp) || 0, nd = parseFloat(o.ndc) || 0, dp = parseFloat(o.dp) || 0;
+    $('cGrav').textContent = c.toFixed(3).replace('.',',');
+    /* sem medicao gravada o controlador usa a conta por dentes e diametro */
+    const reserva = nd > 0 && dp > 0 && Math.abs(c - dp*Math.PI/nd) < 0.002;
+    $('cOrig').textContent = reserva ? 'calculado' : 'medido';
+    $('cOrigTxt').textContent = reserva ? 'pelos dentes (' + nd + ') e diâmetro (' + dp + '): ainda não foi medido'
+                                        : 'pela calibração do velocímetro';
+  }
   avisoMarcha(o);
   if(fw === 'antigo') slidersDosGanhos();
 }
@@ -2141,6 +2172,40 @@ $('lSai').onclick = async ()=>{
   document.body.classList.add('trancado');
   $('lErro').textContent = '';
 };
+
+/* ====================== tela cheia ====================== */
+/*  Android (Chrome): esconde barra de endereco e de status. iPad: esconde a
+ *  barra do navegador. iPhone nao permite para paginas: o botao nem aparece.
+ *  Instalado pela tela inicial (manifest.json) ja abre em tela cheia, e o
+ *  botao some porque nao e preciso. */
+try{ (function(){
+  const raiz = document.documentElement;
+  const pode = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+  const mm = q => !!(window.matchMedia && window.matchMedia(q).matches);
+  const instalado = mm('(display-mode: fullscreen)') || mm('(display-mode: standalone)') || navigator.standalone;
+  if(!pode || instalado) return;
+  const b = $('bTela');
+  b.hidden = false;
+  const emTela = ()=> document.fullscreenElement || document.webkitFullscreenElement;
+  const marca = ()=>{
+    const on = !!emTela();
+    b.title = on ? 'Sair da tela cheia' : 'Tela cheia';
+    b.setAttribute('aria-label', b.title);
+    $('icoTela').setAttribute('d', on ? 'M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5'
+                                      : 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5');
+  };
+  b.onclick = ()=>{
+    try{
+      if(emTela()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      else{
+        const p = (raiz.requestFullscreen || raiz.webkitRequestFullscreen).call(raiz, {navigationUI:'hide'});
+        if(p && p.catch) p.catch(()=>{});
+      }
+    }catch(e){}
+  };
+  document.addEventListener('fullscreenchange', marca);
+  document.addEventListener('webkitfullscreenchange', marca);
+})(); }catch(e){}   /* tela cheia e extra: nunca pode impedir o resto do painel */
 
 size();
 paintDial(0,0);
