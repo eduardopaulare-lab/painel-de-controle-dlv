@@ -6,266 +6,316 @@
 <title>Painel do limitador</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<meta name="theme-color" content="#0A1118">
 <style>
+/* =====================================================================
+   Painel do limitador - painel de instrumentos escuro
+   Cor de destaque azul so para velocidade e acoes principais; ambar para
+   limite e avisos; vermelho so para "passou do limite" / falha.
+   ===================================================================== */
 :root{
-  --ground:#EEF1F3; --panel:#FFFFFF; --panel-2:#F6F8F9;
-  --ink:#16202A; --ink-soft:#5A6873; --ink-faint:#8B98A3;
-  --rule:#C9D2D8; --rule-soft:#E1E7EB;
-  --brass:#A8781F; --brass-lit:#C8922E;
-  --signal:#B3261E; --ok:#2E6B4F; --cool:#3D6E8F;
-  box-sizing:border-box;
+  --ground:#0A1118; --panel:#121C26; --panel-2:#172431;
+  --ink:#E4EDF5; --ink-soft:#93A7BA; --ink-faint:#5F7486;
+  --rule:#263749; --rule-soft:#1C2B3A;
+  --brass:#39B6FF; --brass-lit:#7FD0FF;      /* destaque azul (nome antigo mantido) */
+  --cool:#F4B23E;                             /* limite (ambar) */
+  --warn:#F4B23E;
+  --signal:#F2554B; --ok:#34D07A;
+  --num:"Barlow Semi Condensed","Barlow",system-ui,sans-serif;
+  color-scheme:dark;
   padding-top:env(safe-area-inset-top,0px);
   padding-bottom:env(safe-area-inset-bottom,0px);
 }
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --ground:#131A21; --panel:#1A232C; --panel-2:#212C36;
-    --ink:#E4EAEF; --ink-soft:#8C9AA6; --ink-faint:#697884;
-    --rule:#2C3944; --rule-soft:#232E38;
-    --brass:#D9A441; --brass-lit:#EFBF63;
-    --signal:#E5675C; --ok:#4FA57C; --cool:#6FA3C4;
-  }
-}
-:root[data-theme="dark"]{
-  --ground:#131A21; --panel:#1A232C; --panel-2:#212C36;
-  --ink:#E4EAEF; --ink-soft:#8C9AA6; --ink-faint:#697884;
-  --rule:#2C3944; --rule-soft:#232E38;
-  --brass:#D9A441; --brass-lit:#EFBF63;
-  --signal:#E5675C; --ok:#4FA57C; --cool:#6FA3C4;
-}
-*,*::before,*::after{box-sizing:inherit}
-html{height:100%; scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%; -webkit-text-size-adjust:100%; scroll-padding-top:env(safe-area-inset-top,0px)}
 body{
-  margin:0; min-height:100%; background:var(--ground); color:var(--ink);
-  font-family:Archivo,"Helvetica Neue",Arial,sans-serif;
+  margin:0; min-height:100%; color:var(--ink);
+  background:radial-gradient(120% 60% at 50% 0%, #10202E 0%, var(--ground) 60%) fixed var(--ground);
+  font-family:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
   font-size:16px; line-height:1.45; -webkit-font-smoothing:antialiased;
 }
-.wrap{max-width:560px; margin:0 auto; padding:0 14px 48px}
-h1{font-size:19px; font-weight:600; margin:0; letter-spacing:-.01em}
-h2{font-size:15px; font-weight:600; margin:0 0 10px; color:var(--ink-soft)}
+h1{font-family:var(--num); font-size:21px; font-weight:700; margin:0; letter-spacing:.01em}
+h2{font-family:var(--num); font-size:17px; font-weight:600; margin:0 0 12px; color:var(--ink)}
 
+/* ---------- estrutura ----------
+   Em pe: uma coluna. Deitado (celular ou tablet) e computador: mostrador a
+   esquerda, fixo, e ajustes a direita. A coluna do mostrador rola sozinha se
+   nao couber, para a velocidade continuar a vista enquanto se mexe nos ajustes. */
+:root{--barH:72px}
+.wrap{max-width:560px; margin:0 auto;
+  padding:0 max(14px, env(safe-area-inset-right,0px)) 48px max(14px, env(safe-area-inset-left,0px))}
+.colA,.colB{min-width:0}
+@media (min-width:700px) and (orientation:portrait){ .wrap{max-width:680px} }
 .bar{
   position:sticky; top:env(safe-area-inset-top,0px); z-index:20;
-  background:var(--panel); border-bottom:1px solid var(--rule);
+  background:rgba(10,17,24,.92); -webkit-backdrop-filter:blur(10px); backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--rule);
   margin:0 -14px 16px; padding:12px 14px;
   display:flex; align-items:center; gap:12px;
 }
 .bar .who{flex:1; min-width:0}
-.bar .sub{font-size:12.5px; color:var(--ink-faint); margin-top:1px;
+.bar .sub{font-size:13px; color:var(--ink-soft); margin-top:1px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.dot{width:9px;height:9px;border-radius:50%;background:var(--ink-faint);flex:none}
-.dot.on{background:var(--ok)}
-.dot.busy{background:var(--brass)}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--ink-faint);flex:none}
+.dot.on{background:var(--ok); box-shadow:0 0 10px var(--ok)}
+.dot.busy{background:var(--warn); box-shadow:0 0 10px var(--warn)}
 
+/* ---------- botoes ---------- */
 button{
-  font:inherit; font-weight:500; color:var(--ink);
-  background:var(--panel); border:1px solid var(--rule); border-radius:5px;
-  padding:11px 14px; cursor:pointer; min-height:44px;
+  font:inherit; font-weight:600; color:var(--ink);
+  background:var(--panel-2); border:1px solid var(--rule); border-radius:10px;
+  padding:11px 14px; cursor:pointer; min-height:46px;
+  -webkit-tap-highlight-color:transparent; touch-action:manipulation;
 }
 button:hover{border-color:var(--ink-faint)}
-button:focus-visible{outline:2px solid var(--brass); outline-offset:2px}
-button:disabled{opacity:.42; cursor:default}
-button.key{background:var(--brass); border-color:var(--brass); color:#fff}
+button:focus-visible{outline:2px solid var(--brass-lit); outline-offset:2px}
+button:disabled{opacity:.38; cursor:default}
+button.key{background:var(--brass); border-color:var(--brass); color:#04131F}
 button.key:hover{background:var(--brass-lit); border-color:var(--brass-lit)}
-button.danger{color:var(--signal); border-color:var(--signal)}
+button.danger{color:var(--signal); border-color:rgba(242,85,75,.55); background:rgba(242,85,75,.08)}
 button.danger.hit{background:var(--signal); border-color:var(--signal); color:#fff}
-button.warn{color:var(--brass); border-color:var(--brass)}
-button.warn.hit{background:var(--brass); border-color:var(--brass); color:#fff}
+button.warn{color:var(--warn); border-color:var(--warn)}
+button.warn.hit{background:var(--warn); color:#1A1204}
 button.live{border-color:var(--ok); color:var(--ok)}
 button.hit{border-color:var(--ok); color:var(--ok)}
 
+/* ---------- cartoes ---------- */
 .panel{
-  background:var(--panel); border:1px solid var(--rule); border-radius:6px;
+  background:var(--panel); border:1px solid var(--rule-soft); border-radius:16px;
   padding:16px; margin-bottom:14px;
 }
+details{background:var(--panel); border:1px solid var(--rule-soft); border-radius:16px;
+  margin-bottom:14px; overflow:hidden}
+summary{padding:16px 18px; cursor:pointer; font-family:var(--num); font-size:17px; font-weight:600;
+  list-style:none; display:flex; align-items:center; justify-content:space-between}
+summary::-webkit-details-marker{display:none}
+summary::after{content:""; width:9px; height:9px; border-right:2px solid var(--ink-faint);
+  border-bottom:2px solid var(--ink-faint); transform:rotate(45deg); margin:-4px 4px 0 0;
+  transition:transform .2s}
+details[open] summary::after{transform:rotate(-135deg); margin-top:4px}
+details[open] summary{border-bottom:1px solid var(--rule-soft)}
+.inner{padding:4px 18px 18px}
+.grp{font-size:13px; font-weight:600; color:var(--ink-soft);
+  padding:16px 0 6px; border-bottom:1px solid var(--rule-soft)}
 
-.dial{display:block; width:100%; max-width:330px; margin:0 auto}
-.dial .grad{stroke:var(--rule); stroke-width:1.5}
-.dial .grad.major{stroke:var(--ink-faint); stroke-width:2}
-.dial .track{fill:none; stroke:var(--rule-soft); stroke-width:13; stroke-linecap:round}
-.dial .fill{fill:none; stroke:var(--brass); stroke-width:13; stroke-linecap:round;
-  transition:stroke-dasharray .25s linear}
+/* ---------- mostrador (o destaque da pagina) ---------- */
+.instr{padding:10px 12px 16px; background:
+  radial-gradient(80% 70% at 50% 35%, rgba(57,182,255,.08), transparent 70%), var(--panel)}
+.dial{display:block; width:100%; max-width:380px; margin:0 auto}
+.dial .zona{fill:none; stroke-width:7; stroke-linecap:butt}
+.dial .z-ok{stroke:var(--ok)} .dial .z-perto{stroke:var(--warn)} .dial .z-alem{stroke:var(--signal)}
+.dial .grad{stroke:#3A4E62; stroke-width:1.5}
+.dial .grad.major{stroke:#9FB3C6; stroke-width:2.4}
+.dial .num{fill:#AFC2D3; font-family:var(--num); font-size:15px; font-weight:600}
+.dial .track{fill:none; stroke:#1B2A39; stroke-width:12; stroke-linecap:round}
+.dial .fill{fill:none; stroke:var(--brass); stroke-width:12; stroke-linecap:round;
+  transition:stroke-dasharray .25s linear, stroke .2s}
 .dial .fill.over{stroke:var(--signal)}
-.dial .want{fill:none; stroke:var(--cool); stroke-width:3; stroke-linecap:round;
-  transition:stroke-dasharray .25s linear}
-.dial .num{fill:var(--ink-faint); font-size:11px; font-weight:500}
-.dial .big{fill:var(--ink); font-size:58px; font-weight:700;
-  font-variant-numeric:tabular-nums; letter-spacing:-.02em}
-.dial .unit{fill:var(--ink-soft); font-size:15px; font-weight:500}
-.dial .cap{fill:var(--ink-faint); font-size:12.5px; font-weight:500}
+.dial .marca{fill:var(--cool)}
+.dial .agulha{transform-box:view-box; transform-origin:160px 160px; transition:transform .25s linear}
+.dial .big{fill:var(--ink); font-family:var(--num); font-size:56px; font-weight:700;
+  font-variant-numeric:tabular-nums; letter-spacing:-.01em}
+.dial .big.over{fill:var(--signal)}
+.dial .unit{fill:var(--ink-soft); font-family:var(--num); font-size:15px; font-weight:600}
+.dial .cap{fill:var(--cool); font-family:var(--num); font-size:15px; font-weight:600}
 
-.tune{display:flex; justify-content:center; gap:6px; margin:6px 0 2px}
+.tune{display:flex; justify-content:center; flex-wrap:wrap; gap:6px; margin:4px 0 2px}
 .tune span{
-  font-size:12.5px; font-weight:600; padding:5px 12px; border-radius:4px;
-  border:1px solid var(--rule-soft); color:var(--ink-faint);
+  font-size:13px; font-weight:600; padding:5px 12px; border-radius:999px;
+  border:1px solid var(--rule); color:var(--ink-faint); transition:all .15s;
 }
-.tune span.hit{border-color:currentColor}
-.tune .cons.hit{color:var(--ok)}
-.tune .agr.hit{color:var(--brass)}
-.tune .cut.hit{color:var(--signal)}
+.tune span.hit{border-color:currentColor; background:rgba(255,255,255,.04)}
+.tune .cons.hit{color:var(--ok); box-shadow:0 0 12px rgba(52,208,122,.25)}
+.tune .agr.hit{color:var(--brass); box-shadow:0 0 12px rgba(57,182,255,.25)}
+.tune .cut.hit{color:var(--signal); box-shadow:0 0 12px rgba(242,85,75,.25)}
 .tune .liv.hit{color:var(--ink-soft)}
 
 .bars{margin-top:16px}
-.bline{margin-bottom:11px}
+.bline{margin-bottom:12px}
 .bline .lab{display:flex; justify-content:space-between; align-items:baseline;
-  font-size:12.5px; color:var(--ink-faint); font-weight:500; margin-bottom:4px}
-.bline .lab b{font-size:14px; color:var(--ink); font-variant-numeric:tabular-nums}
-.meter{height:9px; background:var(--rule-soft); border-radius:5px; overflow:hidden}
-.meter i{display:block; height:100%; border-radius:5px; width:0;
-  transition:width .2s linear}
+  font-size:13px; color:var(--ink-soft); font-weight:500; margin-bottom:5px}
+.bline .lab b{font-family:var(--num); font-size:17px; color:var(--ink); font-variant-numeric:tabular-nums}
+.meter{height:8px; background:#1B2A39; border-radius:5px; overflow:hidden}
+.meter i{display:block; height:100%; border-radius:5px; width:0; transition:width .2s linear}
 .meter i.ped{background:var(--ok)}
 .meter i.tet{background:var(--cool)}
-.meter i.sai{background:var(--brass)}
+.meter i.sai{background:var(--brass); box-shadow:0 0 8px var(--brass)}
 
-.reads{display:grid; grid-template-columns:repeat(2,1fr); gap:1px;
-  background:var(--rule-soft); border:1px solid var(--rule-soft); border-radius:5px;
-  overflow:hidden; margin-top:14px}
-.reads div{background:var(--panel-2); padding:10px 12px}
-.reads b{display:block; font-size:22px; font-weight:600;
+.reads{display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:14px}
+.reads div{background:var(--panel-2); border:1px solid var(--rule-soft); border-radius:12px; padding:10px 12px}
+.reads b{display:block; font-family:var(--num); font-size:24px; font-weight:600;
   font-variant-numeric:tabular-nums; line-height:1.15}
-.reads small{font-size:12px; color:var(--ink-faint); font-weight:500}
+.reads small{font-size:12.5px; color:var(--ink-soft)}
 
 #plot{width:100%; height:190px; display:block}
-.legend{display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px;
-  color:var(--ink-faint); margin-top:8px}
-.legend i{display:inline-block; width:15px; height:2.5px; vertical-align:middle;
-  margin-right:6px; border-radius:2px}
+.legend{display:flex; gap:16px; flex-wrap:wrap; font-size:13px; color:var(--ink-soft); margin-top:8px}
+.legend i{display:inline-block; width:15px; height:3px; vertical-align:middle; margin-right:6px; border-radius:2px}
 
 .row{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
 .row button{flex:1 1 auto; min-width:96px}
 
+/* ---------- avisos ---------- */
 #faults:empty{display:none}
 #faults{margin-bottom:14px}
 .fault{
-  border:1px solid var(--signal); border-left-width:4px; border-radius:5px;
-  padding:11px 13px; margin-bottom:8px; font-size:14.5px; background:var(--panel);
+  border:1px solid rgba(242,85,75,.5); border-left:4px solid var(--signal); border-radius:12px;
+  padding:11px 14px; margin-bottom:8px; font-size:15px; background:rgba(242,85,75,.08);
 }
-.fault b{display:block; color:var(--signal)}
-.fault.warn{border-color:var(--brass)}
-.fault.warn b{color:var(--brass)}
+.fault b{display:block; color:var(--signal); font-family:var(--num); font-size:16px}
+.fault.warn{border-color:rgba(244,178,62,.45); border-left-color:var(--warn); background:rgba(244,178,62,.07)}
+.fault.warn b{color:var(--warn)}
+.warnbox{border:1px solid rgba(244,178,62,.45); border-left:4px solid var(--warn); border-radius:12px;
+  padding:11px 14px; font-size:14px; background:rgba(244,178,62,.07); margin:10px 0 0}
+.conf{display:none}
+.conf.on{display:block}
+.conf .row{margin-top:8px}
 
-details{background:var(--panel); border:1px solid var(--rule); border-radius:6px;
-  margin-bottom:14px; overflow:hidden}
-summary{padding:15px 16px; cursor:pointer; font-weight:600; list-style:none}
-summary::-webkit-details-marker{display:none}
-summary::after{content:"+"; float:right; color:var(--ink-faint); font-weight:400}
-details[open] summary::after{content:"\2212"}
-.inner{padding:0 16px 16px}
-.grp{font-size:12.5px; font-weight:600; color:var(--ink-faint);
-  padding:14px 0 6px; border-bottom:1px solid var(--rule-soft)}
-/* === DISPOSICAO DAS LINHAS DE PARAMETRO (previne corte) ===
-   A coluna do campo e "auto": dimensiona pelo conteudo, nao por um valor
-   fixo que o input estoura. Quem encolhe e o rotulo, via minmax(0,1fr). */
+/* ---------- campos ---------- */
 .prow{
-  display:grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap:8px;
-  align-items:center;
-  padding:8px 0;
-  border-bottom:1px solid var(--rule-soft);
+  display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:center;
+  padding:10px 0; border-bottom:1px solid var(--rule-soft);
 }
-.prow label{font-size:13.5px; min-width:0; overflow-wrap:anywhere; line-height:1.3}
-.prow label em{display:block; font-style:normal; font-size:11.5px; color:var(--ink-faint)}
+.prow label{font-size:15px; min-width:0; overflow-wrap:anywhere; line-height:1.3}
+.prow label em{display:block; font-style:normal; font-size:12.5px; color:var(--ink-soft)}
 /* 16px no minimo: com fonte menor o iPhone amplia a pagina ao tocar no campo */
 .prow input,.prow select{
   font:inherit; font-size:16px; font-variant-numeric:tabular-nums;
   width:auto; min-width:130px; max-width:100%;
-  padding:8px 6px; border:1px solid var(--rule); border-radius:4px;
-  background:var(--panel-2); color:var(--ink); min-height:40px;
-  box-sizing:border-box;
+  padding:9px 10px; border:1px solid var(--rule); border-radius:10px;
+  background:var(--panel-2); color:var(--ink); min-height:44px;
 }
-.prow input{text-align:right}
+.prow input{text-align:right; font-family:var(--num); font-size:18px}
 .prow input:focus,.prow select:focus{outline:2px solid var(--brass); outline-offset:-1px}
-.prow input.dirty{border-color:var(--brass)}
+.prow input.dirty{border-color:var(--warn); box-shadow:0 0 0 1px var(--warn) inset}
+input[type=range]{width:100%; height:42px; accent-color:var(--brass); margin:0}
 
+.note{font-size:14px; color:var(--ink-soft); margin:0 0 14px}
+.note b{color:var(--ink)}
+
+.bignum{background:var(--panel-2); border:1px solid var(--rule-soft); border-radius:12px;
+  padding:12px 14px; margin-bottom:12px}
+.bignum b{display:block; font-family:var(--num); font-size:34px; font-weight:700;
+  font-variant-numeric:tabular-nums; line-height:1.1}
+.bignum small{font-size:12.5px; color:var(--ink-soft)}
+
+.resbox{margin-top:14px; padding:12px 14px; border-radius:12px;
+  border:1px solid var(--rule-soft); background:var(--panel-2); font-size:14px; color:var(--ink-soft)}
+.resbox b{color:var(--ink); font-family:var(--num); font-size:19px; font-variant-numeric:tabular-nums}
+.resbox.bad{border-color:var(--signal); color:var(--signal)}
+
+/* sliders da sintonia antiga */
+.sld{margin-bottom:18px}
+.sld .slab{display:flex; justify-content:space-between; align-items:baseline}
+.sld .slab span{font-size:15px; font-weight:600}
+.sld .slab b{font-family:var(--num); font-size:22px; font-weight:600; color:var(--brass)}
+.sld em{display:block; font-style:normal; font-size:13px; color:var(--ink-soft); line-height:1.35; margin-top:2px}
+
+/* ---------- terminal ---------- */
 #log{
   font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:12.5px;
-  line-height:1.5; background:var(--panel-2); border:1px solid var(--rule-soft);
-  border-radius:5px; padding:11px; height:240px; overflow:auto;
+  line-height:1.5; background:#0B141D; border:1px solid var(--rule-soft);
+  border-radius:12px; padding:11px; height:240px; overflow:auto;
   white-space:pre-wrap; overflow-wrap:anywhere; color:var(--ink-soft);
 }
-#log .me{color:var(--brass); font-weight:600}
+#log .me{color:var(--brass-lit); font-weight:600}
 .cmd{display:flex; gap:8px; margin-top:10px}
 .cmd input{
-  flex:1; min-width:0;   /* mesma razao: item flex nao encolhe sozinho */
-  font:inherit; font-size:16px; padding:10px 12px; min-height:44px;
-  border:1px solid var(--rule); border-radius:5px;
-  background:var(--panel-2); color:var(--ink);
+  flex:1; min-width:0; font:inherit; font-size:16px; padding:10px 12px; min-height:46px;
+  border:1px solid var(--rule); border-radius:10px; background:var(--panel-2); color:var(--ink);
 }
 .cmd input:focus{outline:2px solid var(--brass); outline-offset:-1px}
 
-.sld{margin-bottom:18px}
-.sld .slab{display:flex; justify-content:space-between; align-items:baseline}
-.sld .slab span{font-size:14px; font-weight:600}
-.sld .slab b{font-size:20px; font-weight:600; font-variant-numeric:tabular-nums;
-  color:var(--brass)}
-.sld em{display:block; font-style:normal; font-size:12.5px; color:var(--ink-faint);
-  line-height:1.35; margin-top:2px}
-input[type=range]{width:100%; height:42px; accent-color:var(--brass); margin:0}
-
-.bignum{background:var(--panel-2); border:1px solid var(--rule-soft);
-  border-radius:5px; padding:12px 14px; margin-bottom:12px}
-.bignum b{display:block; font-size:30px; font-weight:600;
-  font-variant-numeric:tabular-nums; line-height:1.1}
-.bignum small{font-size:12px; color:var(--ink-faint); font-weight:500}
-
-.resbox{margin-top:14px; padding:12px 14px; border-radius:5px;
-  border:1px solid var(--rule-soft); background:var(--panel-2);
-  font-size:13.5px; color:var(--ink-soft)}
-.resbox b{color:var(--ink); font-size:17px; font-variant-numeric:tabular-nums}
-.resbox.bad{border-color:var(--signal); color:var(--signal)}
-
-.note{font-size:13.5px; color:var(--ink-soft); margin:0 0 14px}
-.note b{color:var(--ink)}
-.warnbox{border:1px solid var(--brass); border-left-width:4px; border-radius:5px;
-  padding:11px 13px; font-size:13.5px; background:var(--panel); margin:10px 0 0}
-/* ---- tela de senha ---- */
-#login{display:none; min-height:100vh; align-items:center; justify-content:center;
-  padding:24px 14px}
+/* ---------- tela de senha ---------- */
+#login{display:none; min-height:100vh; align-items:center; justify-content:center; padding:24px 14px}
 body.trancado #login{display:flex}
 body.trancado .wrap{display:none}
-.lbox{width:100%; max-width:360px; background:var(--panel); border:1px solid var(--rule);
-  border-radius:6px; padding:22px 18px}
-.lbox h1{margin:0 0 4px}
+.lbox{width:100%; max-width:380px; background:var(--panel); border:1px solid var(--rule);
+  border-radius:20px; padding:26px 20px; box-shadow:0 0 60px rgba(57,182,255,.08)}
+.lbox h1{margin:0 0 4px; font-size:26px}
 .lbox input[type=password],.lbox input[type=text]{
-  width:100%; font:inherit; font-size:16px; padding:11px 12px; min-height:46px;
-  border:1px solid var(--rule); border-radius:5px; background:var(--panel-2); color:var(--ink);
-  margin:14px 0 10px}
+  width:100%; font:inherit; font-size:16px; padding:12px 14px; min-height:48px;
+  border:1px solid var(--rule); border-radius:12px; background:var(--panel-2); color:var(--ink);
+  margin:16px 0 12px}
 .lbox input:focus{outline:2px solid var(--brass); outline-offset:-1px}
 .lbox button{width:100%}
-.lbox .lem{display:flex; align-items:center; gap:8px; font-size:14px; color:var(--ink-soft);
-  margin:0 0 14px}
+.lbox .lem{display:flex; align-items:center; gap:8px; font-size:14px; color:var(--ink-soft); margin:0 0 14px}
 .lbox .lem input{width:20px; height:20px; margin:0; accent-color:var(--brass)}
 #lErro{color:var(--signal); font-size:14px; min-height:20px; margin:10px 0 0}
 #gerador{display:none; margin-top:18px; padding-top:14px; border-top:1px solid var(--rule-soft)}
 #gerador code{display:block; font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   font-size:12px; overflow-wrap:anywhere; background:var(--panel-2); padding:10px;
-  border-radius:5px; margin-top:8px; user-select:all; -webkit-user-select:all}
-/* ---- PIN e crachas ---- */
-#pinBox{border-color:var(--brass)}
-#pinBox input{font:inherit; font-size:22px; letter-spacing:.3em; text-align:center;
-  width:100%; padding:10px; min-height:50px; border:1px solid var(--rule); border-radius:5px;
-  background:var(--panel-2); color:var(--ink); margin:6px 0 10px}
-#pinBox input:focus{outline:2px solid var(--brass); outline-offset:-1px}
+  border-radius:8px; margin-top:8px; user-select:all; -webkit-user-select:all}
+
+/* ---------- PIN e crachas ---------- */
+#pinBox{border-color:rgba(244,178,62,.5)}
+#pinBox input{font-family:var(--num); font-size:26px; letter-spacing:.35em; text-align:center;
+  width:100%; padding:10px; min-height:54px; border:1px solid var(--rule); border-radius:12px;
+  background:var(--panel-2); color:var(--ink); margin:8px 0 10px}
+#pinBox input:focus{outline:2px solid var(--warn); outline-offset:-1px}
 #pinErro{color:var(--signal); font-size:14px; min-height:20px; margin:8px 0 0}
 .lem2{display:flex; align-items:center; gap:8px; font-size:14px; color:var(--ink-soft); margin:0 0 10px}
 .lem2 input{width:20px; height:20px; margin:0; accent-color:var(--brass)}
 .crow{display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:8px; align-items:center;
-  padding:8px 0; border-bottom:1px solid var(--rule-soft)}
-.crow code{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:13px;
-  color:var(--ink-soft)}
-.crow input{font:inherit; font-size:16px; min-width:0; width:100%; padding:7px 8px;
-  border:1px solid var(--rule); border-radius:4px; background:var(--panel-2); color:var(--ink);
-  min-height:40px}
-.crow button{min-height:40px; padding:8px 10px}
-.crow.novo{background:var(--panel-2)}
-#craVazio{font-size:13.5px; color:var(--ink-faint); padding:10px 0}
-.conf{display:none}
-.conf.on{display:block}
-.conf .row{margin-top:8px}
-html{-webkit-text-size-adjust:100%}
-button{-webkit-tap-highlight-color:transparent; touch-action:manipulation}
+  padding:9px 0; border-bottom:1px solid var(--rule-soft)}
+.crow code{font-family:var(--num); font-size:15px; font-weight:600; letter-spacing:.04em; color:var(--ink-soft)}
+.crow input{font:inherit; font-size:16px; min-width:0; width:100%; padding:8px 10px;
+  border:1px solid var(--rule); border-radius:10px; background:var(--panel-2); color:var(--ink); min-height:42px}
+.crow button{min-height:42px; padding:8px 10px}
+.crow.novo code{color:var(--ok)}
+#craVazio{font-size:14px; color:var(--ink-faint); padding:10px 0}
+
+/* ---------- manutencao ---------- */
+.sw{position:relative; display:inline-block; width:56px; height:32px; flex:none}
+.sw input{position:absolute; opacity:0; width:100%; height:100%; margin:0; cursor:pointer; z-index:1}
+.sw span{position:absolute; inset:0; border-radius:999px; background:#22303F; border:1px solid var(--rule);
+  transition:background .15s}
+.sw span::after{content:""; position:absolute; top:3px; left:3px; width:24px; height:24px;
+  border-radius:50%; background:#C9D6E2; transition:transform .15s}
+.sw input:checked + span{background:var(--warn); border-color:var(--warn)}
+.sw input:checked + span::after{transform:translateX(24px); background:#fff}
+.sw input:focus-visible + span{outline:2px solid var(--brass-lit); outline-offset:2px}
+.sw input:disabled + span{opacity:.4}
+.swrow{display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:12px 0; border-bottom:1px solid var(--rule-soft)}
+.swrow label{font-size:15px; line-height:1.3}
+.swrow label em{display:block; font-style:normal; font-size:12.5px; color:var(--ink-soft)}
+#raBox{margin-top:16px; padding:16px; border-radius:14px; background:var(--panel-2);
+  border:1px solid var(--rule-soft); touch-action:none; user-select:none; -webkit-user-select:none}
+#raBox.ativo{border-color:var(--warn); box-shadow:0 0 24px rgba(244,178,62,.18)}
+#raBox .raTop{display:flex; justify-content:space-between; align-items:baseline}
+#raBox .raTop b{font-family:var(--num); font-size:40px; font-weight:700; font-variant-numeric:tabular-nums}
+#raBox .raTop span{font-size:14px; color:var(--ink-soft)}
+#raSld{height:56px; accent-color:var(--warn)}
+#raSld:disabled{opacity:.4}
+
+/* ---------- telas deitadas e computador (no fim, para valer sobre o resto) ---------- */
+@media (min-width:980px), (orientation:landscape) and (min-width:640px){
+  .wrap{max-width:1180px; display:grid; grid-template-columns:minmax(0,470px) minmax(0,1fr);
+        column-gap:20px; align-items:start}
+  .wrap > .bar, .wrap > #hint, .wrap > #faults, .wrap > #pinBox{grid-column:1 / -1}
+  .colA{position:sticky; top:calc(var(--barH) + 12px);
+        max-height:calc(100vh - var(--barH) - 24px); max-height:calc(100dvh - var(--barH) - 24px);
+        overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin}
+  /* mostrador cabe na altura da tela */
+  .dial{max-width:min(380px, calc(100vh - var(--barH) - 150px));
+        max-width:min(380px, calc(100dvh - var(--barH) - 150px))}
+}
+/* celular deitado: pouca altura, tudo mais compacto */
+@media (orientation:landscape) and (max-height:520px){
+  :root{--barH:56px}
+  .wrap{grid-template-columns:minmax(260px,.85fr) minmax(0,1fr); column-gap:14px}
+  .bar{padding:7px 14px; margin-bottom:10px}
+  .bar h1{font-size:18px}
+  .bar button{min-height:40px; padding:8px 12px}
+  .instr{padding:6px 8px 10px}
+  .dial{max-width:min(300px, calc(100vh - var(--barH) - 70px));
+        max-width:min(300px, calc(100dvh - var(--barH) - 70px))}
+  .tune span{padding:4px 10px; font-size:12px}
+  .panel{padding:12px}
+  #plot{height:150px}
+}
+
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -327,15 +377,38 @@ button{-webkit-tap-highlight-color:transparent; touch-action:manipulation}
     <p id="pinErro"></p>
   </div>
 
-  <div class="panel">
-    <svg class="dial" viewBox="0 0 300 232" role="img" aria-label="Velocidade">
+  <div class="colA">
+  <div class="panel instr">
+    <svg class="dial" viewBox="0 0 320 320" role="img" aria-label="Velocidade">
+      <defs>
+        <linearGradient id="aro" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#D5E1EC"/><stop offset=".35" stop-color="#5E7385"/>
+          <stop offset=".6" stop-color="#2A3A4A"/><stop offset="1" stop-color="#AFC0CF"/>
+        </linearGradient>
+        <radialGradient id="face" cx=".5" cy=".42" r=".6">
+          <stop offset="0" stop-color="#16263A"/><stop offset="1" stop-color="#0A121B"/>
+        </radialGradient>
+        <filter id="brilho" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="4" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+      </defs>
+      <circle cx="160" cy="160" r="154" fill="url(#aro)"/>
+      <circle cx="160" cy="160" r="146" fill="url(#face)"/>
+      <g id="zonas"></g>
       <g id="grads"></g>
       <path class="track" id="track"></path>
-      <path class="fill"  id="fill" stroke-dasharray="0 999"></path>
-      <path class="want"  id="want" stroke-dasharray="0 999"></path>
-      <text class="big"  id="dVel" x="150" y="158" text-anchor="middle">--</text>
-      <text class="unit" x="150" y="180" text-anchor="middle">km/h</text>
-      <text class="cap"  id="dLim" x="150" y="205" text-anchor="middle">limite --</text>
+      <path class="fill"  id="fill" stroke-dasharray="0 999" filter="url(#brilho)"></path>
+      <g id="marca"></g>
+      <g class="agulha" id="agulha">
+        <path d="M160 156.5 L278 159.2 L278 160.8 L160 163.5 Z" fill="#F4F8FB" filter="url(#brilho)"/>
+        <path d="M160 157 L142 158.6 L142 161.4 L160 163 Z" fill="#8FA3B5"/>
+      </g>
+      <circle cx="160" cy="160" r="11" fill="#2A3A4A" stroke="#9FB3C6" stroke-width="2"/>
+      <circle cx="160" cy="160" r="4" fill="var(--brass)"/>
+      <text class="cap"  id="dLim" x="160" y="222" text-anchor="middle">limite --</text>
+      <text class="big"  id="dVel" x="160" y="270" text-anchor="middle">--</text>
+      <text class="unit" x="160" y="301" text-anchor="middle">km/h</text>
     </svg>
 
     <div class="tune">
@@ -386,6 +459,9 @@ button{-webkit-tap-highlight-color:transparent; touch-action:manipulation}
       <button id="bZoom" disabled>Limpar gráfico</button>
     </div>
   </div>
+  </div><!-- /colA -->
+
+  <div class="colB">
 
   <!-- Sintonia do programa ANTIGO (dois jogos de ganho: manso/agressivo) -->
   <div class="panel" id="pidAntigo">
@@ -486,6 +562,39 @@ button{-webkit-tap-highlight-color:transparent; touch-action:manipulation}
       </div>
     </details>
   </div>
+
+  <!-- Manutencao: so aparece no programa que tem (telemetria traz mn=) -->
+  <details id="dMan" style="display:none">
+    <summary>Manutenção</summary>
+    <div class="inner">
+      <p class="warnbox" style="margin:12px 0 4px">Use com a máquina no cavalete ou com as rodas de
+      tração levantadas, e com alguém no comando. O modo desliga sozinho se o painel ficar
+      3 minutos sem sinal ou quando a máquina trava.</p>
+      <div class="swrow">
+        <label for="swMan">Modo manutenção<em id="manTxt">desligado</em></label>
+        <span class="sw"><input type="checkbox" id="swMan" disabled><span></span></span>
+      </div>
+      <div class="swrow">
+        <label for="swAlm">Ignorar o alarme (A2)<em>o freio e o aviso de ATENÇÃO deixam de cortar o acelerador</em></label>
+        <span class="sw"><input type="checkbox" id="swAlm" disabled><span></span></span>
+      </div>
+
+      <div id="raBox">
+        <div class="raTop"><b id="raVal">0%</b><span id="raDica">segure e arraste para acelerar</span></div>
+        <input type="range" id="raSld" min="0" max="100" value="0" disabled aria-label="Acelerador remoto">
+        <div class="prow" style="border-bottom:0; padding-bottom:0">
+          <label for="raMax">limite do acelerador remoto<em>o limitador de velocidade continua valendo</em></label>
+          <select id="raMax" disabled>
+            <option value="30">30%</option>
+            <option value="50" selected>50%</option>
+            <option value="100">100%</option>
+          </select>
+        </div>
+      </div>
+      <p class="note" style="margin:10px 0 0">Soltar o dedo, sair do painel ou perder o Bluetooth
+      zera o acelerador em meio segundo.</p>
+    </div>
+  </details>
 
   <details id="dParam">
     <summary>Parâmetros</summary>
@@ -692,6 +801,7 @@ button{-webkit-tap-highlight-color:transparent; touch-action:manipulation}
     </div>
   </details>
 
+  </div><!-- /colB -->
 </div>
 
 <script>
@@ -789,9 +899,14 @@ if(location.hash === '#gerar-senha'){
 const br = (n,d=1) => Number(n).toFixed(d).replace('.',',');
 
 /* ====================== mostrador ====================== */
-let FS = 16;                       /* fundo de escala, ajusta ao limite */
-const A0 = 150, A1 = 390, CX = 150, CY = 132, R = 104;
-const LEN = 2*Math.PI*R*(A1-A0)/360;
+/*  Varredura de 240 graus, aberta embaixo, onde fica o numero.
+ *  Zonas no aro relativas ao LIMITE da maquina: verde ate 80% do limite,
+ *  ambar ate o limite, vermelho acima. Vermelho sempre quer dizer "passou".
+ */
+let FS = 16, LIM = 0;                /* fundo de escala e limite atual */
+const A0 = 150, A1 = 390, CX = 160, CY = 160;
+const R_ZONA = 133, R_ARCO = 80;
+const LEN = 2*Math.PI*R_ARCO*(A1-A0)/360;
 const ang = v => A0 + (Math.min(Math.max(v,0),FS)/FS) * (A1-A0);
 const pol = (a,r) => [CX + r*Math.cos(a*Math.PI/180), CY + r*Math.sin(a*Math.PI/180)];
 function arc(from,to,r){
@@ -799,46 +914,61 @@ function arc(from,to,r){
   return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${(to-from)>180?1:0} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
 }
 const SVGNS = "http://www.w3.org/2000/svg";
+function el(tag, at, pai){
+  const e = document.createElementNS(SVGNS, tag);
+  for(const k in at) e.setAttribute(k, at[k]);
+  pai.appendChild(e); return e;
+}
+function esvazia(g){ while(g.firstChild) g.removeChild(g.firstChild); }
 
 function graduar(){
-  const g = $('grads');
-  while(g.firstChild) g.removeChild(g.firstChild);
-  const passo = FS > 24 ? 2 : 1, rot = FS > 24 ? 10 : 5;
+  const g = $('grads'), z = $('zonas'), m = $('marca');
+  esvazia(g); esvazia(z); esvazia(m);
+
+  /* zonas */
+  if(LIM > 0){
+    const verde = Math.min(LIM*0.8, FS), amb = Math.min(LIM, FS);
+    el('path', {d:arc(A0, ang(verde), R_ZONA), class:'zona z-ok'}, z);
+    if(amb > verde) el('path', {d:arc(ang(verde), ang(amb), R_ZONA), class:'zona z-perto'}, z);
+    if(FS > amb)    el('path', {d:arc(ang(amb), A1, R_ZONA), class:'zona z-alem'}, z);
+    /* marca do limite: triangulo ambar no aro */
+    const a = ang(LIM), [x,y] = pol(a, R_ZONA+9), [xl,yl] = pol(a-3.2, R_ZONA+17), [xr,yr] = pol(a+3.2, R_ZONA+17);
+    el('path', {d:`M ${x.toFixed(1)} ${y.toFixed(1)} L ${xl.toFixed(1)} ${yl.toFixed(1)} L ${xr.toFixed(1)} ${yr.toFixed(1)} Z`, class:'marca'}, m);
+  } else {
+    el('path', {d:arc(A0, A1, R_ZONA), class:'zona', stroke:'#22303F'}, z);
+  }
+
+  /* graduacao */
+  const passo = FS > 24 ? 2 : 1, rot = FS > 24 ? 10 : (FS > 12 ? 5 : 2);
   for(let v=0; v<=FS+1e-6; v+=passo){
     const major = Math.abs(v/rot - Math.round(v/rot)) < .01, a = ang(v);
-    const [xa,ya]=pol(a,R+10), [xb,yb]=pol(a,R+(major?19:15));
-    const l=document.createElementNS(SVGNS,"line");
-    l.setAttribute('x1',xa.toFixed(2)); l.setAttribute('y1',ya.toFixed(2));
-    l.setAttribute('x2',xb.toFixed(2)); l.setAttribute('y2',yb.toFixed(2));
-    l.setAttribute('class','grad'+(major?' major':''));
-    g.appendChild(l);
+    const [xa,ya]=pol(a, 124), [xb,yb]=pol(a, major ? 110 : 117);
+    el('line', {x1:xa.toFixed(2), y1:ya.toFixed(2), x2:xb.toFixed(2), y2:yb.toFixed(2),
+                class:'grad'+(major?' major':'')}, g);
     if(major){
-      const [tx,ty]=pol(a,R+30);
-      const t=document.createElementNS(SVGNS,"text");
-      t.setAttribute('x',tx.toFixed(2)); t.setAttribute('y',(ty+4).toFixed(2));
-      t.setAttribute('text-anchor','middle'); t.setAttribute('class','num');
-      t.textContent = Math.round(v); g.appendChild(t);
+      const [tx,ty]=pol(a, 97);
+      const t = el('text', {x:tx.toFixed(2), y:(ty+5).toFixed(2), 'text-anchor':'middle', class:'num'}, g);
+      t.textContent = Math.round(v);
     }
   }
 }
-$('track').setAttribute('d', arc(A0,A1,R));
-$('fill').setAttribute('d',  arc(A0,A1,R));
-$('want').setAttribute('d',  arc(A0,A1,R));
+$('track').setAttribute('d', arc(A0,A1,R_ARCO));
+$('fill').setAttribute('d',  arc(A0,A1,R_ARCO));
 graduar();
 
 function escala(lim){
   const novo = Math.max(10, Math.ceil(lim*1.6/5)*5);
-  if(novo !== FS){ FS = novo; graduar(); draw(); }
+  if(novo !== FS || lim !== LIM){ FS = novo; LIM = lim; graduar(); draw(); }
 }
 
 function paintDial(vel, lim){
-  $('fill').setAttribute('stroke-dasharray',
-    `${(LEN*Math.min(Math.max(vel,0),FS)/FS).toFixed(1)} 999`);
-  $('want').setAttribute('stroke-dasharray',
-    `${(LEN*Math.min(Math.max(lim,0),FS)/FS).toFixed(1)} 999`);
-  $('fill').setAttribute('class','fill' + (vel > lim + 1 ? ' over' : ''));
+  const v = Math.min(Math.max(vel,0),FS), over = lim > 0 && vel > lim + 1;
+  $('fill').setAttribute('stroke-dasharray', `${(LEN*v/FS).toFixed(1)} 999`);
+  $('fill').setAttribute('class','fill' + (over ? ' over' : ''));
+  $('agulha').style.transform = `rotate(${ang(vel).toFixed(2)}deg)`;
   $('dVel').textContent = br(vel);
-  $('dLim').textContent = 'limite ' + lim + ' km/h';
+  $('dVel').setAttribute('class','big' + (over ? ' over' : ''));
+  $('dLim').textContent = lim > 0 ? 'limite ' + lim + ' km/h' : 'limite --';
 }
 
 /* ====================== grafico ====================== */
@@ -931,6 +1061,7 @@ function liberar(on){
    'sReac','sAnt','sFirm','pSuave','pNormal','pFirme','bPidSalva','bPidVolta',
    'fKp','fKi','fKd','bAuto','bPidSalvaN','bPidVoltaN',
    'bCraExige','bCraAdd','bCraLer','segP1','segP2','bSegPin','bSegBloq','bSegEsq',
+   'swMan','raMax',
    'bCal0','bCal1','bZpul','bCmp']
    .forEach(i => $(i).disabled = !on);
 }
@@ -951,7 +1082,7 @@ async function escreve(p){
   else await chr.writeValue(p);
 }
 
-function enviar(linha){
+function enviar(linha, mudo){
   fila = fila.then(async () => {
     if(!chr) return;
     const d = new TextEncoder().encode(linha + '\n');
@@ -960,7 +1091,7 @@ function enviar(linha){
       await new Promise(r => setTimeout(r, 25));
     }
   }).catch(e => put('falha ao enviar: ' + e.message));
-  put('> ' + (/^n?pin\d/.test(linha) ? linha.replace(/\d/g,'•') : linha), true);
+  if(!mudo) put('> ' + (/^n?pin\d/.test(linha) ? linha.replace(/\d/g,'•') : linha), true);
   return fila;
 }
 
@@ -1054,6 +1185,7 @@ async function conectar(){
 
 function desligaTela(){
   temPin = false; destravado = false;
+  manDesliga();
   $('pinBox').style.display = 'none';
   craFimModo();
   chr = null; teleOn = false; liberar(false);
@@ -1122,6 +1254,8 @@ function processar(l){
   if(l.startsWith('$CFG')){ config(campos(l)); put(l); return; }
   if(l.startsWith('$AT')){ defineFw('novo'); put(l); autoMsg(l); return; }
   if(l.startsWith('$PIN')){ put(l); pinMsg(l); return; }
+  if(l.startsWith('$MAN ')){ put(l); manAplica(+l.slice(5)); return; }
+  if(l.startsWith('$RA zerado')){ put(l); aviso('AVISO','Acelerador remoto zerado: o sinal do painel parou de chegar.'); return; }
   if(l.startsWith('$CRA')){ craMsg(l); return; }
   if(l.startsWith('$OK pin')){ put(l); pinTrocado(); return; }
   if(/^\$OK cracha/.test(l)){ put(l); aviso('AVISO', l.replace('$OK ','')); return; }
@@ -1176,8 +1310,9 @@ function amostra(o){
     t:Date.now(), v:v, a:a,
     p:+o.p||0, te:+o.t||0, s:+o.s||0, c:+o.c||140,
     m:+o.m||1, g:o.g||'c', pul:+o.pul||0, r:+o.r||0, ct:+o.ct||0,
-    al:+o.al||0, ar:+o.ar||0
+    al:+o.al||0, ar:+o.ar||0, mn:o.mn
   };
+  if(d.mn !== undefined) manTele(+d.mn);
   $('pedCru').textContent = d.r;
   $('cPul').textContent   = d.pul;
   calcCmp();
@@ -1205,7 +1340,7 @@ function amostra(o){
   $('rCt').textContent    = d.ct ? 'ativo' : '--';
   /* al = depois do filtro (o que o controle usa), ar = leitura crua do pino.
      Cru piscando com o filtro em repouso = ruido, e o pulldown resolve. */
-  $('rAlm').textContent   = d.al ? 'FREANDO' : (d.ar ? 'ruído' : 'livre');
+  $('rAlm').textContent   = (d.al && d.mn === '2') ? 'ignorado' : d.al ? 'FREANDO' : (d.ar ? 'ruído' : 'livre');
   $('rAlm').style.color   = d.al ? 'var(--signal)'
                           : d.ar ? 'var(--brass)' : '';
 
@@ -1829,6 +1964,95 @@ $('bCraLer').onclick = ()=> enviar('clist');
 $('dCra').addEventListener('toggle', ()=>{
   if($('dCra').open && chr && $('craNovo').style.display !== 'none') enviar('clist');
 });
+
+/* ====================== manutencao ====================== */
+/*  O controlador e quem decide: o painel so pede (man0/man1/man2, ra<n>) e
+ *  mostra o que ele responde ($MAN n) e o que a telemetria diz (mn=).
+ *  Acelerador de "segurar": manda ra a cada 150 ms SO enquanto o dedo esta
+ *  no controle. Soltou, saiu da pagina ou perdeu a conexao -> ra0; e se nem
+ *  isso chegar, o controlador zera sozinho em 500 ms.
+ */
+let manModo = 0, manTem = false, tManVida = null;
+let raSegurando = false, tRa = null, raEnviando = false;
+
+function manTele(mn){
+  if(!manTem){ manTem = true; $('dMan').style.display = ''; }
+  if(mn !== manModo) manAplica(mn);
+}
+function manAplica(m){
+  if(!(m >= 0 && m <= 2)) return;
+  manModo = m;
+  $('swMan').checked = m > 0;
+  $('swAlm').checked = m === 2;
+  $('swAlm').disabled = !chr || m === 0;
+  $('raSld').disabled = !chr || m === 0;
+  $('manTxt').textContent = m === 0 ? 'desligado' : (m === 2 ? 'ligado, alarme ignorado' : 'ligado');
+  clearInterval(tManVida); tManVida = null;
+  /* sinal de vida: sem ele o controlador sai da manutencao em 3 minutos */
+  if(m > 0) tManVida = setInterval(()=>{ if(chr) enviar('man' + manModo, true); }, 60000);
+  if(m === 0) raSolta();
+}
+function manDesliga(){
+  raSolta();
+  clearInterval(tManVida); tManVida = null;
+  manModo = 0;
+  $('swMan').checked = $('swAlm').checked = false;
+  $('swAlm').disabled = $('raSld').disabled = true;
+  $('manTxt').textContent = 'desligado';
+}
+
+$('swMan').addEventListener('change', ()=>{
+  const quer = $('swMan').checked;
+  $('swMan').checked = manModo > 0;          /* so muda quando o controlador confirmar */
+  if(precisaPin()) return;
+  enviar(quer ? 'man1' : 'man0');
+});
+$('swAlm').addEventListener('change', ()=>{
+  const quer = $('swAlm').checked;
+  $('swAlm').checked = manModo === 2;
+  if(precisaPin()) return;
+  enviar(quer ? 'man2' : 'man1');
+});
+
+const raPct = ()=> Math.round(+$('raSld').value * (+$('raMax').value) / 100);
+function raMostra(){ $('raVal').textContent = raPct() + '%'; }
+function raEnvia(){
+  if(!chr || !manModo || raEnviando) return;   /* nao empilha: vai o valor mais novo */
+  raEnviando = true;
+  enviar('ra' + raPct(), true).then(()=>{ raEnviando = false; }, ()=>{ raEnviando = false; });
+}
+function raPega(){
+  if($('raSld').disabled) return;
+  raSegurando = true;
+  $('raBox').classList.add('ativo');
+  $('raDica').textContent = 'solte para parar';
+  clearInterval(tRa);
+  tRa = setInterval(()=>{ if(raSegurando) raEnvia(); }, 150);
+}
+function raSolta(){
+  const tinha = raSegurando || +$('raSld').value > 0;
+  raSegurando = false;
+  clearInterval(tRa); tRa = null;
+  $('raSld').value = 0; raMostra();
+  $('raBox').classList.remove('ativo');
+  $('raDica').textContent = 'segure e arraste para acelerar';
+  if(tinha && chr) enviar('ra0', true);
+}
+const sld = $('raSld');
+['pointerdown','touchstart','mousedown'].forEach(ev => sld.addEventListener(ev, raPega, {passive:true}));
+['pointerup','pointercancel','touchend','touchcancel','mouseup','lostpointercapture','blur']
+  .forEach(ev => sld.addEventListener(ev, raSolta));
+sld.addEventListener('input', ()=>{
+  if(!raSegurando){ sld.value = 0; raMostra(); return; }   /* teclado ou toque solto: nao acelera */
+  raMostra(); raEnvia();
+});
+/* dedo saiu do controle, app em segundo plano, janela perdeu o foco */
+window.addEventListener('pointerup', ()=>{ if(raSegurando) raSolta(); });
+window.addEventListener('touchend',  ()=>{ if(raSegurando) raSolta(); });
+window.addEventListener('blur', raSolta);
+window.addEventListener('pagehide', raSolta);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState !== 'visible') raSolta(); });
+$('raMax').addEventListener('change', raMostra);
 
 /* ====================== eventos ====================== */
 $('link').onclick = async ()=>{
