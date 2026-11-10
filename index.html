@@ -710,11 +710,16 @@ body.trancado .wrap{display:none}
         </div>
       </div>
 
-      <div class="bignum" style="margin-top:14px">
-        <b id="cPul">--</b><small>pulsos contados desde o zero</small>
+      <p class="note" style="margin:14px 0 0"><b>1.</b> Zere o contador. <b>2.</b> Faça o
+      percurso (ou dê as voltas na roda). <b>3.</b> Pare e toque em <b>Terminar medição</b>:
+      o que a roda girar depois disso não conta mais. <b>4.</b> Grave.</p>
+
+      <div class="bignum" style="margin-top:12px">
+        <b id="cPul">--</b><small id="cPulTxt">pulsos contados desde o zero</small>
       </div>
       <div class="row">
         <button id="bZpul" disabled>Zerar contador</button>
+        <button id="bCmpFim" disabled>Terminar medição</button>
       </div>
 
       <div class="resbox" id="cRes">Zere o contador, faça o percurso e o resultado
@@ -722,7 +727,8 @@ body.trancado .wrap{display:none}
       <div class="row">
         <button id="bCmp" class="key" disabled>Gravar no controlador</button>
       </div>
-      <p class="note" style="margin:12px 0 0">Mire em pelo menos 150 pulsos. Se faltar
+      <p class="note" style="margin:10px 0 0" id="cNota"></p>
+      <p class="note" style="margin:8px 0 0">Mire em pelo menos 150 pulsos. Se faltar
       espaço, repita o percurso várias vezes sem zerar e some a distância.</p>
     </div>
   </details>
@@ -1062,7 +1068,7 @@ function liberar(on){
    'fKp','fKi','fKd','bAuto','bPidSalvaN','bPidVoltaN',
    'bCraExige','bCraAdd','bCraLer','segP1','segP2','bSegPin','bSegBloq','bSegEsq',
    'swMan','raMax',
-   'bCal0','bCal1','bZpul','bCmp']
+   'bCal0','bCal1','bZpul','bCmp','bCmpFim']
    .forEach(i => $(i).disabled = !on);
 }
 
@@ -1254,6 +1260,18 @@ function processar(l){
   if(l.startsWith('$CFG')){ config(campos(l)); put(l); return; }
   if(l.startsWith('$AT')){ defineFw('novo'); put(l); autoMsg(l); return; }
   if(l.startsWith('$PIN')){ put(l); pinMsg(l); return; }
+  if(l.startsWith('$OK cmp=')){
+    put(l);
+    const v = l.slice(8);
+    $('cNota').textContent = 'Gravado: ' + String(v).replace('.',',') + ' cm por pulso. O velocímetro já usa o valor novo.';
+    aviso('AVISO','Velocímetro calibrado: ' + String(v).replace('.',',') + ' cm por pulso.');
+    return;
+  }
+  if(l.startsWith('$OK pulsos zerados')){
+    put(l); cmpDescongela();
+    $('cNota').textContent = 'Contador zerado. Faça o percurso e depois toque em Terminar medição.';
+    return;
+  }
   if(l.startsWith('$MAN ')){ put(l); manAplica(+l.slice(5)); return; }
   if(l.startsWith('$RA zerado')){ put(l); aviso('AVISO','Acelerador remoto zerado: o sinal do painel parou de chegar.'); return; }
   if(l.startsWith('$CRA')){ craMsg(l); return; }
@@ -1283,6 +1301,7 @@ function processar(l){
   if(l.startsWith('$ERR')){
     const t = l.replace('$ERR','').trim();
     if(/PIN/.test(t)) $('segMsg').textContent = t;
+    if(/cmp/.test(t)) $('cNota').textContent = 'Não gravou: ' + t + '. Confira a distância e os pulsos.';
     aviso('FALHA', t); return;
   }
 }
@@ -1314,7 +1333,9 @@ function amostra(o){
   };
   if(d.mn !== undefined) manTele(+d.mn);
   $('pedCru').textContent = d.r;
-  $('cPul').textContent   = d.pul;
+  cmpVivo = d.pul;
+  if(cmpCongelado === null) $('cPul').textContent = d.pul;
+  else $('cPulTxt').textContent = 'medição terminada; a roda já contou ' + d.pul + ' desde o zero';
   calcCmp();
   /* no historico: t = instante, te = teto. Nomes distintos de proposito,
      o campo "t" da telemetria e o teto e colidiria com o tempo. */
@@ -1710,9 +1731,34 @@ function calcCmp(){
     ' &middot; ' + pulsos + ' pulsos' + aviso1;
 }
 
-$('bZpul').onclick = ()=> enviar('zpul');
+/*  A contagem continua no controlador enquanto a roda gira. "Terminar
+ *  medicao" congela o numero usado na conta, para o que a maquina andar
+ *  depois de chegar ao fim do percurso nao entrar no resultado. */
+let cmpVivo = 0, cmpCongelado = null;
+function cmpDescongela(){
+  cmpCongelado = null;
+  $('bCmpFim').textContent = 'Terminar medição';
+  $('cPulTxt').textContent = 'pulsos contados desde o zero';
+  $('cPul').textContent = cmpVivo;
+}
+$('bZpul').onclick = ()=>{
+  if(precisaPin('cNota')) return;
+  cmpDescongela();
+  $('cNota').textContent = 'Zerando…';
+  enviar('zpul');
+};
+$('bCmpFim').onclick = ()=>{
+  if(cmpCongelado !== null){ cmpDescongela(); calcCmp(); $('cNota').textContent = 'Medição reaberta: a contagem voltou a valer.'; return; }
+  cmpCongelado = cmpVivo;
+  $('cPul').textContent = cmpCongelado;
+  $('bCmpFim').textContent = 'Continuar medindo';
+  $('cNota').textContent = 'Medição terminada com ' + cmpCongelado + ' pulsos. Confira o resultado e grave.';
+  calcCmp();
+};
 $('bCmp').onclick  = async ()=>{
-  if(!(cmpCalc > 0)){ aviso('FALHA','Não há resultado válido para gravar.'); return; }
+  if(!(cmpCalc > 0)){ $('cNota').textContent = 'Ainda não há resultado: zere, faça o percurso e preencha a distância.'; return; }
+  if(precisaPin('cNota')) return;
+  $('cNota').textContent = 'Gravando…';
   await enviar('cmp' + cmpCalc);
   await espera(500); enviar('ver');
 };
