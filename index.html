@@ -779,6 +779,17 @@ body.trancado .wrap{display:none}
         cartões na leitora, um de cada vez. O nome do operador fica salvo só neste
         aparelho; a máquina guarda o número do cartão.</p>
         <p class="note" style="margin:6px 0 0" id="craUlt"></p>
+
+        <div class="prow" id="craMestreRow" style="display:none; margin-top:8px; border-top:1px solid var(--rule-soft)">
+          <label>cartão mestre<em id="craMestreTxt">--</em></label>
+          <div style="display:flex; gap:8px">
+            <button id="bMestre" disabled>Definir</button>
+            <button id="bMestreDel" class="danger" disabled>Remover</button>
+          </div>
+        </div>
+        <p class="note" style="margin:8px 0 0">Com o cartão mestre o gerente cadastra sem celular:
+        na tela "APROXIME SEU CRACHÁ", passa o mestre, passa os cartões novos e passa o mestre
+        de novo para terminar. O mestre não liga a máquina e não remove crachás.</p>
       </div>
 
       <!-- programa antigo: so o modo de cadastro da tela de cracha -->
@@ -1087,7 +1098,7 @@ function liberar(on){
    'sReac','sAnt','sFirm','pSuave','pNormal','pFirme','bPidSalva','bPidVolta',
    'fKp','fKi','fKd','bAuto','bPidSalvaN','bPidVoltaN',
    'bCraExige','bCraAdd','bCraLer','segP1','segP2','bSegPin','bSegBloq','bSegEsq',
-   'swMan','raMax',
+   'swMan','raMax','bMestre','bMestreDel',
    'bCal0','bCal1','bZpul','bCmp','bCmpFim']
    .forEach(i => $(i).disabled = !on);
 }
@@ -1922,6 +1933,11 @@ function configCra(o){
     $('craExigeTxt').textContent = craExige ? 'ligado: só liga com crachá' : 'desligado: liga sem crachá';
     $('bCraExige').textContent = craExige ? 'Desligar' : 'Ligar';
   }
+  if(o.mestre !== undefined){
+    $('craMestreRow').style.display = '';
+    $('craMestreTxt').textContent = o.mestre === '1' ? 'cadastrado' : 'nenhum: o gerente ainda não consegue cadastrar sem celular';
+    $('bMestre').textContent = o.mestre === '1' ? 'Trocar' : 'Definir';
+  }
   const listaNova = o.ncra !== undefined;
   $('craNovo').style.display   = listaNova ? '' : 'none';
   $('craAntigo').style.display = listaNova ? 'none' : '';
@@ -1993,6 +2009,23 @@ function craMsg(l){
     if(craRec) craRec.push(m[1]); return;          /* lista: nao enche o terminal */
   }
   put(l);
+  if(/^\$CRA mestre/.test(l)){
+    const u = (l.match(/^\$CRA mestre ([0-9A-F]{8})$/) || [])[1];
+    if(/passe/.test(l)){
+      $('craMestreTxt').textContent = 'passe na leitora o cartão que vai ser o mestre (60 s)';
+    } else if(u){
+      $('craMestreTxt').textContent = 'cadastrado (' + u + ')'; $('bMestre').textContent = 'Trocar';
+      const d = $('craLista').querySelector('[data-uid="' + u + '"]'); if(d){ d.remove(); craQuantos(); }
+      aviso('AVISO', 'Cartão mestre gravado: ' + u + '.');
+    } else if(/removido/.test(l)){
+      $('craMestreTxt').textContent = 'nenhum: o gerente ainda não consegue cadastrar sem celular';
+      $('bMestre').textContent = 'Definir';
+      aviso('AVISO', 'Cartão mestre removido.');
+    } else if(/cancelado/.test(l)){
+      $('craMestreTxt').textContent = 'não foi passado nenhum cartão; nada mudou';
+    }
+    return;
+  }
   if(/^\$CRA fim$/.test(l)){
     craListaZera();
     (craRec || []).forEach(u => $('craLista').appendChild(linhaCra(u, false)));
@@ -2037,6 +2070,20 @@ function craMsg(l){
 }
 
 $('bCraAdd').onclick = ()=> enviar(craModo ? 'cfim' : 'cadd');
+$('bMestre').onclick = ()=>{ if(precisaPin('craNota')) return; enviar('cmestre'); };
+(function(){
+  let armado = null; const b = $('bMestreDel');
+  b.onclick = ()=>{
+    if(precisaPin('craNota')) return;
+    if(!armado){
+      b.textContent = 'Confirmar'; b.classList.add('hit');
+      armado = setTimeout(()=>{ armado = null; b.textContent = 'Remover'; b.classList.remove('hit'); }, 4000);
+      return;
+    }
+    clearTimeout(armado); armado = null; b.textContent = 'Remover'; b.classList.remove('hit');
+    enviar('cmdel');
+  };
+})();
 $('bCraLer').onclick = ()=> enviar('clist');
 $('dCra').addEventListener('toggle', ()=>{
   if($('dCra').open && chr && $('craNovo').style.display !== 'none') enviar('clist');
